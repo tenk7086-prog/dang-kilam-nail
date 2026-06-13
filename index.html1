@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đặt lịch làm nail</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f7;min-height:100vh;padding:1rem;}
+        .wrap{padding:1rem 0;max-width:480px;margin:0 auto;width:100%;}
+        .page-title{font-size:20px;font-weight:500;color:#1d1d1f;margin-bottom:2px;}
+        .page-sub{font-size:13px;color:#86868b;margin-bottom:1rem;}
+        .card{background:#fff;border:0.5px solid #d2d2d7;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
+        .card-title{font-size:12px;font-weight:500;color:#86868b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+        .day-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:1rem;padding-bottom:4px;scrollbar-width:none;}
+        .day-tabs::-webkit-scrollbar{display:none;}
+        .day-tab{flex-shrink:0;padding:6px 12px;border-radius:8px;border:0.5px solid #d2d2d7;background:#fff;cursor:pointer;text-align:center;min-width:60px;}
+        .day-tab .wd{font-size:11px;color:#86868b;margin-bottom:1px;}
+        .day-tab .dt{font-size:13px;font-weight:500;color:#1d1d1f;}
+        .day-tab.active{border-color:#D4537E;background:#FBEAF0;}
+        .day-tab.active .wd,.day-tab.active .dt{color:#993556;}
+        .day-tab.today .dt::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:#D4537E;margin:2px auto 0;}
+        .pill-today{display:inline-block;background:#FBEAF0;color:#993556;font-size:10px;padding:1px 6px;border-radius:20px;border:0.5px solid #ED93B1;margin-left:4px;vertical-align:middle;}
+        .slots-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;}
+        .slot-btn{padding:10px 12px;border-radius:8px;border:0.5px solid #d2d2d7;background:#fff;cursor:pointer;text-align:left;}
+        .slot-btn:hover:not(.full-slot){border-color:#D4537E;background:#FBEAF0;}
+        .slot-btn.selected{border-color:#D4537E;background:#FBEAF0;}
+        .slot-btn.full-slot{background:#f5f5f7;opacity:.55;cursor:not-allowed;}
+        .slot-time{font-size:13px;font-weight:500;color:#1d1d1f;margin-bottom:3px;}
+        .slot-btn.selected .slot-time,.slot-btn:hover:not(.full-slot) .slot-time{color:#993556;}
+        .slot-status{font-size:11px;color:#86868b;display:flex;align-items:center;gap:4px;}
+        .dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0;}
+        .dot-open{background:#1D9E75;}.dot-half{background:#EF9F27;}.dot-full{background:#E24B4A;}
+        .info-panel{overflow:hidden;max-height:0;transition:max-height .3s ease,opacity .3s ease;opacity:0;}
+        .info-panel.open{max-height:500px;opacity:1;}
+        .info-inner{border-top:0.5px solid #d2d2d7;padding-top:14px;margin-top:14px;}
+        .selected-slot-label{display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:8px 12px;background:#FBEAF0;border-radius:8px;border:0.5px solid #ED93B1;}
+        .selected-slot-label span{font-size:13px;font-weight:500;color:#993556;}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+        .form-group{display:flex;flex-direction:column;gap:5px;}
+        .form-group label{font-size:13px;color:#86868b;}
+        .form-group input{height:36px;padding:0 10px;border-radius:8px;border:0.5px solid #86868b;background:#fff;color:#1d1d1f;font-size:14px;font-family:inherit;outline:none;}
+        .form-group input:focus{border-color:#D4537E;box-shadow:0 0 0 2px rgba(212,83,126,0.1);}
+        .people-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+        .people-btn{height:36px;border-radius:8px;border:0.5px solid #86868b;background:#fff;color:#86868b;font-size:14px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+        .people-btn.active{border-color:#D4537E;background:#FBEAF0;color:#993556;}
+        .btn-review{width:100%;height:40px;border-radius:8px;border:none;background:linear-gradient(135deg,#D4537E,#993556);color:#fff;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+        .btn-review:active{transform:scale(.98);}
+        .toast{padding:10px 14px;border-radius:8px;font-size:13px;margin-top:10px;display:none;}
+        .toast.show{display:block;}.toast.error{background:#FCEBEB;color:#A32D2D;border:0.5px solid #F09595;}
+        .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:flex-end;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s ease;}
+        .overlay.show{opacity:1;pointer-events:all;}
+        .sheet{background:#fff;border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:480px;transform:translateY(100%);transition:transform .25s ease;}
+        .overlay.show .sheet{transform:translateY(0);}
+        .sheet-handle{width:36px;height:4px;border-radius:2px;background:#d2d2d7;margin:0 auto 1rem;}
+        .sheet-title{font-size:15px;font-weight:500;color:#1d1d1f;margin-bottom:4px;}
+        .sheet-sub{font-size:12px;color:#86868b;margin-bottom:14px;}
+        .review-rows{border:0.5px solid #d2d2d7;border-radius:8px;overflow:hidden;margin-bottom:14px;}
+        .review-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;font-size:13px;border-bottom:0.5px solid #d2d2d7;}
+        .review-row:last-child{border-bottom:none;}
+        .review-row .rl{color:#86868b;}.review-row .rv{color:#1d1d1f;font-weight:500;}
+        .btn-confirm{width:100%;height:42px;border-radius:8px;border:none;background:linear-gradient(135deg,#D4537E,#993556);color:#fff;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px;}
+        .btn-confirm:disabled{opacity:.5;cursor:not-allowed;}
+        .btn-confirm:not(:disabled):active{transform:scale(.98);}
+        .btn-cancel{width:100%;height:38px;border-radius:8px;border:0.5px solid #86868b;background:#fff;color:#86868b;font-size:13px;font-family:inherit;cursor:pointer;}
+        .btn-cancel:hover{background:#f5f5f7;}
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <p class="page-title"><i class="ti ti-sparkles" aria-hidden="true" style="font-size:18px;vertical-align:-2px;margin-right:6px;color:#D4537E;"></i>Đặt lịch làm nail</p>
+        <p class="page-sub">Mỗi khung giờ nhận tối đa 2 người — bấm vào giờ để đặt chỗ</p>
+        <div class="card" id="booking-form">
+            <div class="card-title"><i class="ti ti-calendar" aria-hidden="true" style="font-size:14px;"></i> Chọn ngày</div>
+            <div class="day-tabs" id="day-tabs"></div>
+            <div class="card-title"><i class="ti ti-clock" aria-hidden="true" style="font-size:14px;"></i> Chọn khung giờ</div>
+            <div class="slots-grid" id="slots-grid"></div>
+            <div class="info-panel" id="info-panel">
+                <div class="info-inner">
+                    <div class="selected-slot-label">
+                        <i class="ti ti-clock-check" aria-hidden="true" style="font-size:16px;color:#D4537E;"></i>
+                        <span id="selected-label">—</span>
+                    </div>
+                    <div class="card-title"><i class="ti ti-user" aria-hidden="true" style="font-size:14px;"></i> Thông tin khách</div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Tên</label><input type="text" id="inp-name" placeholder="Nguyễn Thị A" autocomplete="name"/></div>
+                        <div class="form-group"><label>Số điện thoại</label><input type="tel" id="inp-phone" placeholder="0901 234 567" autocomplete="tel"/></div>
+                    </div>
+                    <div class="card-title"><i class="ti ti-users" aria-hidden="true" style="font-size:14px;"></i> Số người</div>
+                    <div class="people-toggle">
+                        <button class="people-btn active" data-v="1" onclick="setPeople(1)"><i class="ti ti-user" aria-hidden="true" style="font-size:15px;"></i> 1 người</button>
+                        <button class="people-btn" data-v="2" onclick="setPeople(2)"><i class="ti ti-users" aria-hidden="true" style="font-size:15px;"></i> 2 người</button>
+                    </div>
+                    <button class="btn-review" onclick="openReview()"><i class="ti ti-eye" aria-hidden="true" style="font-size:16px;"></i> Xem lại & đặt lịch</button>
+                    <div class="toast" id="toast"></div>
+                </div>
+            </div>
+        </div>
+        <div class="success-card" id="success-card" style="display:none;">
+            <div class="success-header">
+                <div class="success-icon"><i class="ti ti-circle-check" aria-hidden="true" style="font-size:22px;color:#D4537E;"></i></div>
+                <div>
+                    <p style="font-size:15px;font-weight:500;color:#1d1d1f;">Đặt lịch thành công!</p>
+                    <p style="font-size:12px;color:#86868b;">Vui lòng đến đúng giờ</p>
+                </div>
+            </div>
+            <div class="success-rows" id="success-rows"></div>
+            <button class="btn-back" onclick="backToForm()"><i class="ti ti-arrow-left" aria-hidden="true" style="font-size:14px;vertical-align:-1px;margin-right:4px;"></i>Đặt lịch khác</button>
+        </div>
+    </div>
+    <div class="overlay" id="overlay" onclick="closeReviewOutside(event)">
+        <div class="sheet" id="sheet">
+            <div class="sheet-handle"></div>
+            <p class="sheet-title">Xác nhận thông tin đặt lịch</p>
+            <p class="sheet-sub">Kiểm tra lại trước khi xác nhận</p>
+            <div class="review-rows" id="review-rows"></div>
+            <button class="btn-confirm" id="btn-confirm" onclick="doRegister()"><i class="ti ti-calendar-check" aria-hidden="true" style="font-size:16px;"></i> Xác nhận đặt lịch</button>
+            <button class="btn-cancel" onclick="closeReview()">Quay lại chỉnh sửa</button>
+        </div>
+    </div>
+    <script>
+        // --- CẤU HÌNH ---
+        const SCRIPT_URL = "DÁN_URL_WEB_APP_CỦA_BẠN_VÀO_ĐÂY"; 
+        // ----------------
+        
+        const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+        const MAX = 2;
+        let schedule = {}; let selectedDay = null; let selectedHour = null; let numPeople = 1;
+        
+        function getNext10Days() {
+            const days = []; const today = new Date(); today.setHours(0,0,0,0);
+            for (let i = 0; i < 11; i++) {
+                const d = new Date(today); d.setDate(today.getDate() + i);
+                const key = d.toISOString().slice(0,10); days.push({date:d,key});
+                schedule[key] = {}; HOURS.forEach(h => { schedule[key][h] = []; });
+            }
+            return days;
+        }
+        const DAYS_LIST = getNext10Days();
+        
+        function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
+        
+        function renderDayTabs() {
+            const c = document.getElementById('day-tabs'); c.innerHTML = '';
+            DAYS_LIST.forEach(({date,key},i) => {
+                const btn = document.createElement('button');
+                btn.className = 'day-tab'+(key===selectedDay?' active':'')+(i===0?' today':'');
+                btn.innerHTML = '<div class="wd">'+wdLabel(date)+(i===0?' <span class="pill-today">hôm nay</span>':'')+'</div><div class="dt">'+date.getDate()+'/'+(date.getMonth()+1)+'</div>';
+                btn.onclick = () => { selectedDay=key; selectedHour=null; hideInfoPanel(); renderDayTabs(); renderSlots(); };
+                c.appendChild(btn);
+            });
+        }
+        
+        function slotAvail(key,h) { return MAX-(schedule[key][h]?schedule[key][h].length:0); }
+        
+        function renderSlots() {
+            const grid = document.getElementById('slots-grid');
+            if (!selectedDay) { grid.innerHTML='<p style="font-size:13px;color:#86868b;padding:8px 0;">Chọn ngày...</p>'; return; }
+            grid.innerHTML='';
+            HOURS.forEach(h => {
+                const avail = slotAvail(selectedDay,h); const isFull = avail<=0;
+                const btn = document.createElement('button');
+                btn.className='slot-btn'+(isFull?' full-slot':'')+(selectedHour===h&&!isFull?' selected':'');
+                const dotClass=isFull?'dot-full':avail===1?'dot-half':'dot-open';
+                const statusTxt=isFull?'Đã đủ':avail===1?'Còn 1 chỗ':'Còn 2 chỗ';
+                const endH=parseInt(h)+1;
+                btn.innerHTML='<div class="slot-time">'+h+' – '+(endH<10?'0':'')+endH+':00</div><div class="slot-status"><span class="dot '+dotClass+'"></span>'+statusTxt+'</div>';
+                if (!isFull) btn.onclick = () => selectHour(h);
+                grid.appendChild(btn);
+            });
+        }
+        
+        function selectHour(h) {
+            selectedHour = h; renderSlots();
+            const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
+            const endH = parseInt(h)+1;
+            document.getElementById('selected-label').textContent = wdLabel(dayObj.date)+' · '+h+' – '+endH+':00';
+            showInfoPanel();
+        }
+        
+        function showInfoPanel() { document.getElementById('info-panel').classList.add('open'); }
+        function hideInfoPanel() { document.getElementById('info-panel').classList.remove('open'); }
+        function setPeople(n) { numPeople = n; document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v===n)); }
+        
+        function openReview() {
+            const name = document.getElementById('inp-name').value.trim();
+            const phone = document.getElementById('inp-phone').value.trim();
+            if (!name || !phone) { alert('Vui lòng nhập tên và SĐT'); return; }
+            document.getElementById('overlay').classList.add('show');
+        }
+        
+        function closeReview() { document.getElementById('overlay').classList.remove('show'); }
+        
+        function doRegister() {
+            // Sau khi có SCRIPT_URL, đoạn code này sẽ thực hiện fetch() gửi dữ liệu về Google Sheets
+            alert("Đặt lịch thành công!");
+            closeReview();
+            document.getElementById('booking-form').style.display = 'none';
+            document.getElementById('success-card').style.display = 'block';
+        }
+        
+        function backToForm() {
+            document.getElementById('success-card').style.display = 'none';
+            document.getElementById('booking-form').style.display = 'block';
+        }
+
+        selectedDay = DAYS_LIST[0].key;
+        renderDayTabs(); renderSlots();
+    </script>
+</body>
+</html>
