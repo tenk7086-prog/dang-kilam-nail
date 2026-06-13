@@ -121,7 +121,7 @@
     </div>
     <script>
         // --- CẤU HÌNH ---
-        const SCRIPT_URL = "DÁN_URL_WEB_APP_CỦA_BẠN_VÀO_ĐÂY"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbztAZ-8bjV0j52uQLh2KezsUh8ZAYh5bguYwW7G9xgPuUhS7OR1pgHOhbJDsu6RaBTd/exec"; 
         // ----------------
         
         const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
