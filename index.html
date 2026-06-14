@@ -162,23 +162,34 @@
         function clearAllSavedData() { ['selectedDay','selectedHour','name','phone','numPeople'].forEach(k => localStorage.removeItem('nail_' + k)); }
 
         async function loadScheduleFromSheet() {
-            document.getElementById('loading-indicator').style.display = 'flex';
-            try {
-                const res = await fetch(SCRIPT_URL + '?action=get'); 
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    data.forEach(row => {
-                        const { day, hour, people } = row;
-                        if (schedule[day] && schedule[day][hour]) {
-                            const count = parseInt(people) || 1;
-                            for (let i = 0; i < count; i++) schedule[day][hour].push({ name: '?', phone: '?' });
-                        }
-                    });
+    document.getElementById('loading-indicator').style.display = 'flex';
+    try {
+        // Gọi thẳng URL, không cần no-cors vì đã xử lý header ở trên
+        const res = await fetch(SCRIPT_URL + '?action=get'); 
+        const data = await res.json();
+        
+        // Làm sạch lịch hiện tại trước khi đổ dữ liệu mới
+        DAYS_LIST.forEach(d => {
+            Object.keys(schedule[d.key]).forEach(h => schedule[d.key][h] = []);
+        });
+
+        if (Array.isArray(data)) {
+            data.forEach(row => {
+                const { day, hour, people } = row;
+                if (schedule[day] && schedule[day][hour]) {
+                    const count = parseInt(people) || 1;
+                    for (let i = 0; i < count; i++) {
+                        schedule[day][hour].push({ name: row.name, phone: row.phone });
+                    }
                 }
-            } catch(e) { console.error('Lỗi tải lịch:', e); }
-            document.getElementById('loading-indicator').style.display = 'none';
-            renderSlots();
+            });
         }
+        renderSlots(); // Render lại để cập nhật trạng thái "Đã đủ chỗ"
+    } catch(e) { 
+        console.error('Lỗi tải lịch:', e); 
+    }
+    document.getElementById('loading-indicator').style.display = 'none';
+}
 
         function renderDayTabs() {
             const c = document.getElementById('day-tabs'); c.innerHTML = '';
