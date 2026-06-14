@@ -147,14 +147,13 @@
 
         function getNext10Days() {
     const days = []; 
-    const today = new Date(); 
-    today.setHours(0,0,0,0);
+    // Khởi tạo ngày dựa trên giờ hệ thống hiện tại của máy tính người dùng
+    const now = new Date(); 
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    // Bắt đầu lùi lại 2 ngày để nhận diện được lịch cũ (ngày 13/6)
+    // Bắt đầu từ hôm nay
     const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 2); 
 
-    // Lấy 14 ngày (2 tuần) để hiển thị lịch trong thời gian tới
     for (let i = 0; i < 14; i++) { 
         const d = new Date(startDate); 
         d.setDate(startDate.getDate() + i);
