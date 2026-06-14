@@ -63,12 +63,11 @@
         .review-row .rl{color:#86868b;}.review-row .rv{color:#1d1d1f;font-weight:500;}
         .btn-confirm{width:100%;height:42px;border-radius:8px;border:none;background:linear-gradient(135deg,#D4537E,#993556);color:#fff;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px;}
         .btn-confirm:disabled{opacity:.5;cursor:not-allowed;}
-        .btn-:not(:disabled):active{transform:scale(.98
         .btn-cancel{width:100%;height:38px;border-radius:8px;border:0.5px solid #86868b;background:#fff;color:#86868b;font-size:13px;font-family:inherit;cursor:pointer;}
         .btn-cancel:hover{background:#f5f5f7;}
         .success-card{background:#fff;border:0.5px solid #d2d2d7;border-radius:12px;padding:1.25rem;margin-bottom:1rem;}
         .success-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:0.5px solid #d2d2d7;}
-        .success-icon{width:40px;height:40px;border-radius:50%;background:#FBEAF;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .success-icon{width:40px;height:40px;border-radius:50%;background:#FBEAF0;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
         .success-rows{border:0.5px solid #d2d2d7;border-radius:8px;overflow:hidden;margin-bottom:14px;}
         .success-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;font-size:13px;border-bottom:0.5px solid #d2d2d7;}
         .success-row:last-child{border-bottom:none;}
@@ -155,10 +154,7 @@
             for (let i = 0; i < 14; i++) { 
                 const d = new Date(startDate); 
                 d.setDate(startDate.getDate() + i);
-                const key =
-  d.getFullYear() + "-" +
-  String(d.getMonth() + 1).padStart(2, "0") + "-" +
-  String(d.getDate()).padStart(2, "0"); 
+                const key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); 
                 days.push({date:d,key});
                 schedule[key] = {}; 
                 HOURS.forEach(h => { schedule[key][h] = []; });
@@ -168,12 +164,7 @@
         const DAYS_LIST = getNext10Days();
         function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
 
-        // ======================================================================
-        // HỆ THỐNG LƯU TRỮ SIÊU CHẮC CHẮN (FIX F5)
-        // ======================================================================
-        function saveField(key, value) {
-            localStorage.setItem('nail_' + key, value);
-        }
+        function saveField(key, value) { localStorage.setItem('nail_' + key, value); }
         function loadField(key, defaultValue) {
             const val = localStorage.getItem('nail_' + key);
             return val !== null ? val : defaultValue;
@@ -214,13 +205,9 @@
                 btn.className = 'day-tab'+(key===selectedDay?' active':'')+(i===0?' today':'');
                 btn.innerHTML = '<div class="wd">'+wdLabel(date)+(i===0?' <span class="pill-today">hôm nay</span>':'')+'</div><div class="dt">'+date.getDate()+'/'+(date.getMonth()+1)+'</div>';
                 btn.onclick = () => { 
-                    selectedDay=key; 
-                    selectedHour=null; 
-                    saveField('selectedDay', key);
-                    saveField('selectedHour', ''); 
-                    hideInfoPanel(); 
-                    renderDayTabs(); 
-                    renderSlots(); 
+                    selectedDay=key; selectedHour=null; 
+                    saveField('selectedDay', key); saveField('selectedHour', ''); 
+                    hideInfoPanel(); renderDayTabs(); renderSlots(); 
                 };
                 c.appendChild(btn);
             });
@@ -246,8 +233,7 @@
         }
 
         function selectHour(h) {
-            selectedHour = h; 
-            saveField('selectedHour', h);
+            selectedHour = h; saveField('selectedHour', h);
             renderSlots();
             const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
             const endH = parseInt(h)+1;
@@ -258,8 +244,7 @@
         function showInfoPanel() { document.getElementById('info-panel').classList.add('open'); }
         function hideInfoPanel() { document.getElementById('info-panel').classList.remove('open'); }
         function setPeople(n) { 
-            numPeople = n; 
-            saveField('numPeople', n);
+            numPeople = n; saveField('numPeople', n);
             document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v===n)); 
         }
 
@@ -276,22 +261,14 @@
                 showToast('Khung giờ này chỉ còn ' + avail + ' chỗ, không đủ cho ' + numPeople + ' người');
                 return;
             }
-            const rows = [
-                { label: 'Tên khách', value: name },
-                { label: 'Số điện thoại', value: phone },
-                { label: 'Ngày & giờ', value: timeLabel },
-                { label: 'Số người', value: numPeople + ' người' },
-            ];
-            document.getElementById('review-rows').innerHTML = rows.map(r =>
-                '<div class="review-row"><span class="rl">'+r.label+'</span><span class="rv">'+r.value+'</span></div>'
-            ).join('');
+            const rows = [{ label: 'Tên khách', value: name }, { label: 'Số điện thoại', value: phone }, { label: 'Ngày & giờ', value: timeLabel }, { label: 'Số người', value: numPeople + ' người' }];
+            document.getElementById('review-rows').innerHTML = rows.map(r => '<div class="review-row"><span class="rl">'+r.label+'</span><span class="rv">'+r.value+'</span></div>').join('');
             document.getElementById('overlay').classList.add('show');
         }
 
         function showToast(msg) {
             const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.className = 'toast error show';
+            t.textContent = msg; t.className = 'toast error show';
             setTimeout(() => { t.className = 'toast'; }, 3000);
         }
 
@@ -312,22 +289,15 @@
                 const params = new URLSearchParams({ action: 'set', name, phone, day: selectedDay, hour: selectedHour, people: numPeople, timeLabel });
                 await fetch(SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
             } catch(e) { console.warn('Gửi sheet lỗi:', e); }
+            
             for (let i = 0; i < numPeople; i++) { schedule[selectedDay][selectedHour].push({ name, phone }); }
-            const successRows = [
-                { label: 'Tên khách', value: name },
-                { label: 'Số điện thoại', value: phone },
-                { label: 'Ngày & giờ', value: timeLabel },
-                { label: 'Số người', value: numPeople + ' người' },
-            ];
-            document.getElementById('success-rows').innerHTML = successRows.map(r =>
-                '<div class="success-row"><span class="sl">'+r.label+'</span><span class="sv">'+r.value+'</span></div>'
-            ).join('');
+            const successRows = [{ label: 'Tên khách', value: name }, { label: 'Số điện thoại', value: phone }, { label: 'Ngày & giờ', value: timeLabel }, { label: 'Số người', value: numPeople + ' người' }];
+            document.getElementById('success-rows').innerHTML = successRows.map(r => '<div class="success-row"><span class="sl">'+r.label+'</span><span class="sv">'+r.value+'</span></div>').join('');
+            
             clearAllSavedData();
             document.getElementById('inp-name').value = '';
             document.getElementById('inp-phone').value = '';
-            selectedHour = null;
-            numPeople = 1;
-            setPeople(1);
+            selectedHour = null; numPeople = 1; setPeople(1);
             confirmBtn.disabled = false;
             confirmBtn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
             closeReview();
@@ -337,7 +307,7 @@
 
         function backToForm() {
             document.getElementById('success-card').style.display = 'none';
-            document.getElementById('booking-form').style.display = 'block
+            document.getElementById('booking-form').style.display = 'block';
             hideInfoPanel();
             renderDayTabs();
             renderSlots();
@@ -360,17 +330,10 @@
             });
             document.addEventListener('mouseup', () => {
                 if (!isDragging) return;
-                isDragging = false;
-                el.classList.remove('dragging');
+                isDragging = false; el.classList.remove('dragging');
             });
-            el.addEventListener('click', e => {
-                if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
-            }, true);
-            el.addEventListener('wheel', e => {
-                if (e.deltaY === 0) return;
-                e.preventDefault();
-                el.scrollLeft += e.deltaY;
-            }, { passive: false });
+            el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+            el.addEventListener('wheel', e => { if (e.deltaY === 0) return; e.preventDefault(); el.scrollLeft += e.deltaY; }, { passive: false });
         })();
 
         window.onload = function() {
@@ -379,9 +342,7 @@
             const savedName = loadField('name', '');
             const savedPhone = loadField('phone', '');
             const savedPeople = parseInt(loadField('numPeople', '1'));
-            selectedDay = savedDay;
-            selectedHour = savedHour;
-            numPeople = savedPeople;
+            selectedDay = savedDay; selectedHour = savedHour; numPeople = savedPeople;
             document.getElementById('inp-name').value = savedName;
             document.getElementById('inp-phone').value = savedPhone;
             setPeople(numPeople);
