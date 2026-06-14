@@ -146,14 +146,26 @@
         let schedule = {}; let selectedDay = null; let selectedHour = null; let numPeople = 1;
 
         function getNext10Days() {
-            const days = []; const today = new Date(); today.setHours(0,0,0,0);
-            for (let i = 0; i < 11; i++) {
-                const d = new Date(today); d.setDate(today.getDate() + i);
-                const key = d.toISOString().slice(0,10); days.push({date:d,key});
-                schedule[key] = {}; HOURS.forEach(h => { schedule[key][h] = []; });
-            }
-            return days;
-        }
+    const days = []; 
+    const today = new Date(); 
+    today.setHours(0,0,0,0);
+    
+    // Bắt đầu lùi lại 2 ngày để nhận diện được lịch cũ (ngày 13/6)
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 2); 
+
+    // Lấy 14 ngày (2 tuần) để hiển thị lịch trong thời gian tới
+    for (let i = 0; i < 14; i++) { 
+        const d = new Date(startDate); 
+        d.setDate(startDate.getDate() + i);
+        const key = d.toISOString().slice(0,10); 
+        
+        days.push({date:d,key});
+        schedule[key] = {}; 
+        HOURS.forEach(h => { schedule[key][h] = []; });
+    }
+    return days;
+}
         const DAYS_LIST = getNext10Days();
 
         function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
