@@ -13,23 +13,9 @@
         .page-sub{font-size:13px;color:#86868b;margin-bottom:1rem;}
         .card{background:#fff;border:0.5px solid #d2d2d7;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
         .card-title{font-size:12px;font-weight:500;color:#86868b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
-
-        /* Cuộn ngày: hỗ trợ scroll dọc (mousewheel) + kéo chuột ngang */
-        .day-tabs{
-            display:flex;gap:6px;
-            overflow-x:auto;
-            overflow-y:hidden;
-            -webkit-overflow-scrolling:touch;
-            touch-action:pan-x;
-            margin-bottom:1rem;
-            padding-bottom:6px;
-            scrollbar-width:none;
-            user-select:none;
-            cursor:grab;
-        }
+        .day-tabs{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;margin-bottom:1rem;padding-bottom:6px;scrollbar-width:none;user-select:none;cursor:grab;}
         .day-tabs.dragging{cursor:grabbing;}
         .day-tabs::-webkit-scrollbar{display:none;}
-
         .day-tab{flex-shrink:0;padding:6px 12px;border-radius:8px;border:0.5px solid #d2d2d7;background:#fff;cursor:pointer;text-align:center;min-width:60px;}
         .day-tab .wd{font-size:11px;color:#86868b;margin-bottom:1px;}
         .day-tab .dt{font-size:13px;font-weight:500;color:#1d1d1f;}
@@ -80,8 +66,6 @@
         .btn-confirm:not(:disabled):active{transform:scale(.98);}
         .btn-cancel{width:100%;height:38px;border-radius:8px;border:0.5px solid #86868b;background:#fff;color:#86868b;font-size:13px;font-family:inherit;cursor:pointer;}
         .btn-cancel:hover{background:#f5f5f7;}
-
-        /* Success card styles */
         .success-card{background:#fff;border:0.5px solid #d2d2d7;border-radius:12px;padding:1.25rem;margin-bottom:1rem;}
         .success-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:0.5px solid #d2d2d7;}
         .success-icon{width:40px;height:40px;border-radius:50%;background:#FBEAF0;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -146,7 +130,7 @@
         </div>
     </div>
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZgpUBDJ6ivouBO5ZFLK45X0LTKFVhdRSW58YKvQAU1IQR2c5c3YXHPRKkVKM87RYkoQ/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwujSlevN4Ydp7JMhRPjklXPCTf_B9Bano6568mDZaQvwptkvDGiPhzVDBHPxrK6mrT9Q/exec";
 
         const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
         const MAX = 2;
@@ -229,8 +213,7 @@
                 { label: 'Ngày & giờ', value: timeLabel },
                 { label: 'Số người', value: numPeople + ' người' },
             ];
-            const container = document.getElementById('review-rows');
-            container.innerHTML = rows.map(r =>
+            document.getElementById('review-rows').innerHTML = rows.map(r =>
                 '<div class="review-row"><span class="rl">'+r.label+'</span><span class="rv">'+r.value+'</span></div>'
             ).join('');
 
@@ -247,17 +230,39 @@
         function closeReview() { document.getElementById('overlay').classList.remove('show'); }
         function closeReviewOutside(e) { if (e.target===document.getElementById('overlay')) closeReview(); }
 
-        function doRegister() {
+        async function doRegister() {
+            const confirmBtn = document.getElementById('btn-confirm');
             const name = document.getElementById('inp-name').value.trim();
             const phone = document.getElementById('inp-phone').value.trim();
             const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
             const endH = parseInt(selectedHour)+1;
             const timeLabel = wdLabel(dayObj.date)+', '+dayObj.date.getDate()+'/'+(dayObj.date.getMonth()+1)+' · '+selectedHour+' – '+(endH<10?'0':'')+endH+':00';
 
+            // Disable nút, hiện trạng thái đang gửi
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang gửi...';
+
+            try {
+                // FIX: Gửi dữ liệu lên Google Sheets
+                const params = new URLSearchParams({
+                    name, phone,
+                    day: selectedDay,
+                    hour: selectedHour,
+                    people: numPeople,
+                    timeLabel
+                });
+                await fetch(SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+            } catch(e) {
+                // no-cors sẽ không throw, nhưng bắt phòng khi mạng lỗi
+                console.warn('Gửi sheet lỗi:', e);
+            }
+
+            // Cập nhật schedule local để slot hiển thị đúng
             for (let i = 0; i < numPeople; i++) {
                 schedule[selectedDay][selectedHour].push({ name, phone });
             }
 
+            // Lưu thông tin để hiển thị success
             const successRows = [
                 { label: 'Tên khách', value: name },
                 { label: 'Số điện thoại', value: phone },
@@ -268,31 +273,42 @@
                 '<div class="success-row"><span class="sl">'+r.label+'</span><span class="sv">'+r.value+'</span></div>'
             ).join('');
 
-            closeReview();
-            document.getElementById('booking-form').style.display = 'none';
-            document.getElementById('success-card').style.display = 'block';
-
+            // Reset form nhưng GIỮ ngày đang chọn
+            const savedDay = selectedDay;
             document.getElementById('inp-name').value = '';
             document.getElementById('inp-phone').value = '';
             selectedHour = null;
             numPeople = 1;
             setPeople(1);
+
+            // Restore button
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
+
+            closeReview();
+            document.getElementById('booking-form').style.display = 'none';
+            document.getElementById('success-card').style.display = 'block';
+
+            // Giữ ngày đã chọn để khi quay lại vẫn còn
+            selectedDay = savedDay;
         }
 
         function backToForm() {
             document.getElementById('success-card').style.display = 'none';
             document.getElementById('booking-form').style.display = 'block';
             hideInfoPanel();
+            // FIX: render lại cả tab ngày lẫn slot, giữ nguyên ngày đang chọn
+            renderDayTabs();
             renderSlots();
         }
 
         selectedDay = DAYS_LIST[0].key;
         renderDayTabs(); renderSlots();
 
+        // Kéo chuột + scroll wheel ngang cho thanh ngày
         (function() {
             const el = document.getElementById('day-tabs');
             let isDragging = false, startX = 0, scrollLeft = 0, moved = false;
-
             el.addEventListener('mousedown', e => {
                 isDragging = true; moved = false;
                 startX = e.pageX - el.offsetLeft;
@@ -301,8 +317,7 @@
             });
             document.addEventListener('mousemove', e => {
                 if (!isDragging) return;
-                const x = e.pageX - el.offsetLeft;
-                const dist = x - startX;
+                const dist = (e.pageX - el.offsetLeft) - startX;
                 if (Math.abs(dist) > 3) moved = true;
                 el.scrollLeft = scrollLeft - dist;
             });
@@ -314,13 +329,17 @@
             el.addEventListener('click', e => {
                 if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
             }, true);
-
             el.addEventListener('wheel', e => {
                 if (e.deltaY === 0) return;
                 e.preventDefault();
                 el.scrollLeft += e.deltaY;
             }, { passive: false });
         })();
+
+        // CSS animation cho icon loading
+        const style = document.createElement('style');
+        style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
