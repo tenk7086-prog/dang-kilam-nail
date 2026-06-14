@@ -75,7 +75,6 @@
         .success-row .sl{color:#86868b;}.success-row .sv{color:#1d1d1f;font-weight:500;}
         .btn-back{width:100%;height:38px;border-radius:8px;border:0.5px solid #86868b;background:#fff;color:#86868b;font-size:13px;font-family:inherit;cursor:pointer;}
         .btn-back:hover{background:#f5f5f7;}
-        /* Loading skeleton */
         .loading-bar{height:36px;border-radius:8px;background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;}
         @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -103,8 +102,8 @@
                     </div>
                     <div class="card-title"><i class="ti ti-user" aria-hidden="true" style="font-size:14px;"></i> Thông tin khách</div>
                     <div class="form-row">
-                        <div class="form-group"><label>Tên</label><input type="text" id="inp-name" placeholder="Nguyễn Thị A" autocomplete="name"/></div>
-                        <div class="form-group"><label>Số điện thoại</label><input type="tel" id="inp-phone" placeholder="0901 234 567" autocomplete="tel"/></div>
+                        <div class="form-group"><label>Tên</label><input type="text" id="inp-name" placeholder="Nguyễn Thị A" autocomplete="name" oninput="saveState()"/></div>
+                        <div class="form-group"><label>Số điện thoại</label><input type="tel" id="inp-phone" placeholder="0901 234 567" autocomplete="tel" oninput="saveState()"/></div>
                     </div>
                     <div class="card-title"><i class="ti ti-users" aria-hidden="true" style="font-size:14px;"></i> Số người</div>
                     <div class="people-toggle">
@@ -138,49 +137,74 @@
             <button class="btn-cancel" onclick="closeReview()">Quay lại chỉnh sửa</button>
         </div>
     </div>
+
     <script>
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzJ-bcvZBFlcfW6qjb90OdfjkVIC8qYG2NtY1FgLqC6rJa3nyhdAe854bT7DAxNaLkdkg/exec";
 
         const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
         const MAX = 2;
-        let schedule = {}; let selectedDay = null; let selectedHour = null; let numPeople = 1;
+        let schedule = {}; 
+        let selectedDay = null; 
+        let selectedHour = null; 
+        let numPeople = 1;
 
         function getNext10Days() {
-    const days = []; 
-    // Khởi tạo ngày dựa trên giờ hệ thống hiện tại của máy tính người dùng
-    const now = new Date(); 
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    // Bắt đầu từ hôm nay
-    const startDate = new Date(today);
+            const days = []; 
+            const now = new Date(); 
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const startDate = new Date(today);
 
-    for (let i = 0; i < 14; i++) { 
-        const d = new Date(startDate); 
-        d.setDate(startDate.getDate() + i);
-        const key = d.toISOString().slice(0,10); 
-        
-        days.push({date:d,key});
-        schedule[key] = {}; 
-        HOURS.forEach(h => { schedule[key][h] = []; });
-    }
-    return days;
-}
+            for (let i = 0; i < 14; i++) { 
+                const d = new Date(startDate); 
+                d.setDate(startDate.getDate() + i);
+                const key = d.toISOString().slice(0,10); 
+                days.push({date:d,key});
+                schedule[key] = {}; 
+                HOURS.forEach(h => { schedule[key][h] = []; });
+            }
+            return days;
+        }
         const DAYS_LIST = getNext10Days();
 
         function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
 
-       // ── Load dữ liệu đã đặt từ Google Sheets ──────────────────────────────
+        // ── LƯU VÀ TẢI TRẠNG THÁI (FIX F5 MẤT DỮ LIỆU) ─────────────────────
+        function saveState() {
+            const state = {
+                selectedDay: selectedDay,
+                selectedHour: selectedHour,
+                name: document.getElementById('inp-name').value,
+                phone: document.getElementById('inp-phone').value,
+                numPeople: numPeople
+            };
+            localStorage.setItem('nail_booking_state', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('nail_booking_state');
+            if (saved) {
+                const state = JSON.parse(saved);
+                selectedDay = state.selectedDay;
+                selectedHour = state.selectedHour;
+                numPeople = state.numPeople || 1;
+                document.getElementById('inp-name').value = state.name || '';
+                document.getElementById('inp-phone').value = state.phone || '';
+                setPeople(numPeople);
+                if (selectedHour) {
+                    selectHour(selectedHour);
+                }
+            }
+        }
+        // ──────────────────────────────────────────────────────────────────────
+
         async function loadScheduleFromSheet() {
             document.getElementById('loading-indicator').style.display = 'flex';
             try {
-                // Đã bỏ mode 'no-cors' để có thể đọc được dữ liệu JSON trả về
                 const res = await fetch(SCRIPT_URL + '?action=get'); 
                 const data = await res.json();
-                
                 if (Array.isArray(data)) {
                     data.forEach(row => {
                         const { day, hour, people } = row;
-                        // Kiểm tra định dạng ngày: Đảm bảo 'day' từ JSON trùng khớp định dạng yyyy-mm-dd
                         if (schedule[day] && schedule[day][hour] !== undefined) {
                             const count = parseInt(people) || 1;
                             for (let i = 0; i < count; i++) {
@@ -190,12 +214,11 @@
                     });
                 }
             } catch(e) {
-                console.error('Lỗi khi tải lịch từ Sheet:', e);
+                console.error('Lỗi tải lịch:', e);
             }
             document.getElementById('loading-indicator').style.display = 'none';
             renderSlots();
         }
-        // ──────────────────────────────────────────────────────────────────────
 
         function renderDayTabs() {
             const c = document.getElementById('day-tabs'); c.innerHTML = '';
@@ -203,7 +226,14 @@
                 const btn = document.createElement('button');
                 btn.className = 'day-tab'+(key===selectedDay?' active':'')+(i===0?' today':'');
                 btn.innerHTML = '<div class="wd">'+wdLabel(date)+(i===0?' <span class="pill-today">hôm nay</span>':'')+'</div><div class="dt">'+date.getDate()+'/'+(date.getMonth()+1)+'</div>';
-                btn.onclick = () => { selectedDay=key; selectedHour=null; hideInfoPanel(); renderDayTabs(); renderSlots(); };
+                btn.onclick = () => { 
+                    selectedDay=key; 
+                    selectedHour=null; 
+                    hideInfoPanel(); 
+                    renderDayTabs(); 
+                    renderSlots(); 
+                    saveState();
+                };
                 c.appendChild(btn);
             });
         }
@@ -231,13 +261,18 @@
             selectedHour = h; renderSlots();
             const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
             const endH = parseInt(h)+1;
-            document.getElementById('selected-label').textContent = wdLabel(dayObj.date)+' · '+h+' – '+endH+':00';
+            document.getElementById('selected-label').textContent = wdLabel(dayObj.date)+' · '+h+' – '+(endH<10?'0':'')+endH+':00';
             showInfoPanel();
+            saveState();
         }
 
         function showInfoPanel() { document.getElementById('info-panel').classList.add('open'); }
         function hideInfoPanel() { document.getElementById('info-panel').classList.remove('open'); }
-        function setPeople(n) { numPeople = n; document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v===n)); }
+        function setPeople(n) { 
+            numPeople = n; 
+            document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v===n)); 
+            saveState();
+        }
 
         function openReview() {
             const name = document.getElementById('inp-name').value.trim();
@@ -303,7 +338,6 @@
                 console.warn('Gửi sheet lỗi:', e);
             }
 
-            // Cập nhật schedule local
             for (let i = 0; i < numPeople; i++) {
                 schedule[selectedDay][selectedHour].push({ name, phone });
             }
@@ -318,7 +352,9 @@
                 '<div class="success-row"><span class="sl">'+r.label+'</span><span class="sv">'+r.value+'</span></div>'
             ).join('');
 
-            const savedDay = selectedDay;
+            // XÓA BỘ NHỚ TẠM SAU KHI ĐẶT THÀNH CÔNG
+            localStorage.removeItem('nail_booking_state');
+
             document.getElementById('inp-name').value = '';
             document.getElementById('inp-phone').value = '';
             selectedHour = null;
@@ -331,8 +367,6 @@
             closeReview();
             document.getElementById('booking-form').style.display = 'none';
             document.getElementById('success-card').style.display = 'block';
-
-            selectedDay = savedDay;
         }
 
         function backToForm() {
@@ -343,7 +377,6 @@
             renderSlots();
         }
 
-        // Kéo chuột + scroll wheel ngang cho thanh ngày
         (function() {
             const el = document.getElementById('day-tabs');
             let isDragging = false, startX = 0, scrollLeft = 0, moved = false;
@@ -374,15 +407,16 @@
             }, { passive: false });
         })();
 
-        // Khởi động: render tabs rồi load dữ liệu từ sheet
+        // KHỞI ĐỘNG HỆ THỐNG
         selectedDay = DAYS_LIST[0].key;
         renderDayTabs();
-        // Hiện skeleton slots trước
         (function(){
             const grid = document.getElementById('slots-grid');
             grid.innerHTML = Array(6).fill('<div class="loading-bar"></div>').join('');
         })();
-        loadScheduleFromSheet();
+        
+        loadState(); // 1. Khôi phục dữ liệu cũ từ LocalStorage trước
+        loadScheduleFromSheet(); // 2. Tải dữ liệu thực tế từ Google Sheet
     </script>
 </body>
 </html>
