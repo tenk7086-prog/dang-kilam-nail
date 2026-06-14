@@ -141,41 +141,25 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwH7XLqY7nDsl9f8JU0K_mlFYJUtA7KWraQIgwbC29-ZSxWfYXS9rOUpqJ708HGEfvi/exec";
         const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
         const MAX = 2;
-        let schedule = {}; 
-        let selectedDay = null; 
-        let selectedHour = null; 
-        let numPeople = 1;
+        let schedule = {}; let selectedDay = null; let selectedHour = null; let numPeople = 1;
 
-        function getNext10Days() {
-            const days = []; 
-            const now = new Date(); 
+        function getNext14Days() {
+            const days = []; const now = new Date(); 
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const startDate = new Date(today);
             for (let i = 0; i < 14; i++) { 
-                const d = new Date(startDate); 
-                d.setDate(startDate.getDate() + i);
+                const d = new Date(today); d.setDate(today.getDate() + i);
                 const key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); 
-                days.push({date:d,key});
-                schedule[key] = {}; 
+                days.push({date:d,key}); schedule[key] = {}; 
                 HOURS.forEach(h => { schedule[key][h] = []; });
             }
             return days;
         }
-        const DAYS_LIST = getNext10Days();
+        const DAYS_LIST = getNext14Days();
         function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
 
-        function saveField(key, value) { localStorage.setItem('nail_' + key, value); }
-        function loadField(key, defaultValue) {
-            const val = localStorage.getItem('nail_' + key);
-            return val !== null ? val : defaultValue;
-        }
-        function clearAllSavedData() {
-            localStorage.removeItem('nail_selectedDay');
-            localStorage.removeItem('nail_selectedHour');
-            localStorage.removeItem('nail_name');
-            localStorage.removeItem('nail_phone');
-            localStorage.removeItem('nail_numPeople');
-        }
+        function saveField(k, v) { try { localStorage.setItem('nail_' + k, v); } catch(e) {} }
+        function loadField(k, d) { try { const v = localStorage.getItem('nail_' + k); return v !== null ? v : d; } catch(e) { return d; } }
+        function clearAllSavedData() { ['selectedDay','selectedHour','name','phone','numPeople'].forEach(k => localStorage.removeItem('nail_' + k)); }
 
         async function loadScheduleFromSheet() {
             document.getElementById('loading-indicator').style.display = 'flex';
@@ -185,11 +169,9 @@
                 if (Array.isArray(data)) {
                     data.forEach(row => {
                         const { day, hour, people } = row;
-                        if (schedule[day] && schedule[day][hour] !== undefined) {
+                        if (schedule[day] && schedule[day][hour]) {
                             const count = parseInt(people) || 1;
-                            for (let i = 0; i < count; i++) {
-                                schedule[day][hour].push({ name: '?', phone: '?' });
-                            }
+                            for (let i = 0; i < count; i++) schedule[day][hour].push({ name: '?', phone: '?' });
                         }
                     });
                 }
@@ -204,28 +186,24 @@
                 const btn = document.createElement('button');
                 btn.className = 'day-tab'+(key===selectedDay?' active':'')+(i===0?' today':'');
                 btn.innerHTML = '<div class="wd">'+wdLabel(date)+(i===0?' <span class="pill-today">hôm nay</span>':'')+'</div><div class="dt">'+date.getDate()+'/'+(date.getMonth()+1)+'</div>';
-                btn.onclick = () => { 
-                    selectedDay=key; selectedHour=null; 
-                    saveField('selectedDay', key); saveField('selectedHour', ''); 
-                    hideInfoPanel(); renderDayTabs(); renderSlots(); 
-                };
+                btn.onclick = () => { selectedDay=key; selectedHour=null; saveField('selectedDay', key); saveField('selectedHour', ''); hideInfoPanel(); renderDayTabs(); renderSlots(); };
                 c.appendChild(btn);
             });
         }
 
-        function slotAvail(key,h) { return MAX-(schedule[key][h]?schedule[key][h].length:0); }
-
         function renderSlots() {
             const grid = document.getElementById('slots-grid');
-            if (!selectedDay) { grid.innerHTML='<p style="font-size:13px;color:#86868b;padding:8px 0;">Chọn ngày...</p>'; return; }
+            if (!selectedDay) return;
             grid.innerHTML='';
             HOURS.forEach(h => {
-                const avail = slotAvail(selectedDay,h); const isFull = avail<=0;
+                const used = (schedule[selectedDay][h] || []).length;
+                const avail = MAX - used;
+                const isFull = avail <= 0;
                 const btn = document.createElement('button');
                 btn.className='slot-btn'+(isFull?' full-slot':'')+(selectedHour===h&&!isFull?' selected':'');
                 const dotClass=isFull?'dot-full':avail===1?'dot-half':'dot-open';
                 const statusTxt=isFull?'Đã đủ chỗ':avail===1?'Còn 1 chỗ':'Còn 2 chỗ';
-                const endH=parseInt(h)+1;
+                const endH = parseInt(h)+1;
                 btn.innerHTML='<div class="slot-time">'+h+' – '+(endH<10?'0':'')+endH+':00</div><div class="slot-status"><span class="dot '+dotClass+'"></span>'+statusTxt+'</div>';
                 if (!isFull) btn.onclick = () => selectHour(h);
                 grid.appendChild(btn);
@@ -233,128 +211,58 @@
         }
 
         function selectHour(h) {
-            selectedHour = h; saveField('selectedHour', h);
-            renderSlots();
+            selectedHour = h; saveField('selectedHour', h); renderSlots();
             const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
             const endH = parseInt(h)+1;
             document.getElementById('selected-label').textContent = wdLabel(dayObj.date)+' · '+h+' – '+(endH<10?'0':'')+endH+':00';
-            showInfoPanel();
+            document.getElementById('info-panel').classList.add('open');
         }
 
-        function showInfoPanel() { document.getElementById('info-panel').classList.add('open'); }
         function hideInfoPanel() { document.getElementById('info-panel').classList.remove('open'); }
-        function setPeople(n) { 
-            numPeople = n; saveField('numPeople', n);
-            document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v===n)); 
-        }
+        function setPeople(n) { numPeople = n; saveField('numPeople', n); document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v===n)); }
 
         function openReview() {
             const name = document.getElementById('inp-name').value.trim();
             const phone = document.getElementById('inp-phone').value.trim();
-            if (!name) { showToast('Vui lòng nhập tên'); return; }
-            if (!phone) { showToast('Vui lòng nhập số điện thoại'); return; }
+            if (!name || !phone) { showToast('Vui lòng nhập đầy đủ thông tin'); return; }
             const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
-            const endH = parseInt(selectedHour)+1;
-            const timeLabel = wdLabel(dayObj.date)+', '+dayObj.date.getDate()+'/'+(dayObj.date.getMonth()+1)+' · '+selectedHour+' – '+(endH<10?'0':'')+endH+':00';
-            const avail = slotAvail(selectedDay, selectedHour);
-            if (numPeople > avail) {
-                showToast('Khung giờ này chỉ còn ' + avail + ' chỗ, không đủ cho ' + numPeople + ' người');
-                return;
-            }
-            const rows = [{ label: 'Tên khách', value: name }, { label: 'Số điện thoại', value: phone }, { label: 'Ngày & giờ', value: timeLabel }, { label: 'Số người', value: numPeople + ' người' }];
-            document.getElementById('review-rows').innerHTML = rows.map(r => '<div class="review-row"><span class="rl">'+r.label+'</span><span class="rv">'+r.value+'</span></div>').join('');
+            const timeLabel = wdLabel(dayObj.date)+', '+dayObj.date.getDate()+'/'+(dayObj.date.getMonth()+1)+' · '+selectedHour;
+            const avail = MAX - (schedule[selectedDay][selectedHour] || []).length;
+            if (numPeople > avail) { showToast('Không đủ chỗ cho ' + numPeople + ' người'); return; }
+            document.getElementById('review-rows').innerHTML = [
+                {l:'Tên khách', v:name}, {l:'Số điện thoại', v:phone}, {l:'Ngày & giờ', v:timeLabel}, {l:'Số người', v:numPeople + ' người'}
+            ].map(r => '<div class="review-row"><span class="rl">'+r.l+'</span><span class="rv">'+r.v+'</span></div>').join('');
             document.getElementById('overlay').classList.add('show');
         }
 
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.textContent = msg; t.className = 'toast error show';
-            setTimeout(() => { t.className = 'toast'; }, 3000);
-        }
-
+        function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast error show'; setTimeout(() => { t.className = 'toast'; }, 3000); }
         function closeReview() { document.getElementById('overlay').classList.remove('show'); }
         function closeReviewOutside(e) { if (e.target===document.getElementById('overlay')) closeReview(); }
 
         async function doRegister() {
-            const confirmBtn = document.getElementById('btn-confirm');
-            const name = document.getElementById('inp-name').value.trim();
-            const phone = document.getElementById('inp-phone').value.trim();
-            const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
-            const endH = parseInt(selectedHour)+1;
-            const timeLabel = wdLabel(dayObj.date)+', '+dayObj.date.getDate()+'/'+(dayObj.date.getMonth()+1)+' · '+selectedHour+' – '+(endH<10?'0':'')+endH+':00';
-
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang gửi...';
-            try {
-                const params = new URLSearchParams({ action: 'set', name, phone, day: selectedDay, hour: selectedHour, people: numPeople, timeLabel });
-                await fetch(SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
-            } catch(e) { console.warn('Gửi sheet lỗi:', e); }
-            
-            for (let i = 0; i < numPeople; i++) { schedule[selectedDay][selectedHour].push({ name, phone }); }
-            const successRows = [{ label: 'Tên khách', value: name }, { label: 'Số điện thoại', value: phone }, { label: 'Ngày & giờ', value: timeLabel }, { label: 'Số người', value: numPeople + ' người' }];
-            document.getElementById('success-rows').innerHTML = successRows.map(r => '<div class="success-row"><span class="sl">'+r.label+'</span><span class="sv">'+r.value+'</span></div>').join('');
-            
+            const btn = document.getElementById('btn-confirm');
+            btn.disabled = true; btn.innerHTML = 'Đang gửi...';
+            const params = new URLSearchParams({ action:'set', name:document.getElementById('inp-name').value, phone:document.getElementById('inp-phone').value, day:selectedDay, hour:selectedHour, people:numPeople });
+            await fetch(SCRIPT_URL + '?' + params.toString());
             clearAllSavedData();
-            document.getElementById('inp-name').value = '';
-            document.getElementById('inp-phone').value = '';
-            selectedHour = null; numPeople = 1; setPeople(1);
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
-            closeReview();
             document.getElementById('booking-form').style.display = 'none';
             document.getElementById('success-card').style.display = 'block';
         }
 
-        function backToForm() {
-            document.getElementById('success-card').style.display = 'none';
-            document.getElementById('booking-form').style.display = 'block';
-            hideInfoPanel();
-            renderDayTabs();
-            renderSlots();
-        }
-
-        (function() {
-            const el = document.getElementById('day-tabs');
-            let isDragging = false, startX = 0, scrollLeft = 0, moved = false;
-            el.addEventListener('mousedown', e => {
-                isDragging = true; moved = false;
-                startX = e.pageX - el.offsetLeft;
-                scrollLeft = el.scrollLeft;
-                el.classList.add('dragging');
-            });
-            document.addEventListener('mousemove', e => {
-                if (!isDragging) return;
-                const dist = (e.pageX - el.offsetLeft) - startX;
-                if (Math.abs(dist) > 3) moved = true;
-                el.scrollLeft = scrollLeft - dist;
-            });
-            document.addEventListener('mouseup', () => {
-                if (!isDragging) return;
-                isDragging = false; el.classList.remove('dragging');
-            });
-            el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
-            el.addEventListener('wheel', e => { if (e.deltaY === 0) return; e.preventDefault(); el.scrollLeft += e.deltaY; }, { passive: false });
-        })();
+        function backToForm() { document.getElementById('success-card').style.display = 'none'; document.getElementById('booking-form').style.display = 'block'; renderSlots(); }
 
         window.onload = function() {
-            const savedDay = loadField('selectedDay', DAYS_LIST[0].key);
-            const savedHour = loadField('selectedHour', '');
-            const savedName = loadField('name', '');
-            const savedPhone = loadField('phone', '');
-            const savedPeople = parseInt(loadField('numPeople', '1'));
-            selectedDay = savedDay; selectedHour = savedHour; numPeople = savedPeople;
-            document.getElementById('inp-name').value = savedName;
-            document.getElementById('inp-phone').value = savedPhone;
-            setPeople(numPeople);
+            try {
+                selectedDay = loadField('selectedDay', DAYS_LIST[0].key);
+                document.getElementById('inp-name').value = loadField('name', '');
+                document.getElementById('inp-phone').value = loadField('phone', '');
+                numPeople = parseInt(loadField('numPeople', '1'));
+                setPeople(numPeople);
+            } catch(e){}
             renderDayTabs();
-            const grid = document.getElementById('slots-grid');
-            grid.innerHTML = Array(6).fill('<div class="loading-bar"></div>').join('');
+            renderSlots();
             loadScheduleFromSheet();
-            if (selectedHour) { selectHour(selectedHour); }
         };
-
-        document.getElementById('inp-name').addEventListener('input', function() { saveField('name', this.value); });
-        document.getElementById('inp-phone').addEventListener('input', function() { saveField('phone', this.value); });
     </script>
 </body>
 </html>
