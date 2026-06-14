@@ -158,19 +158,18 @@
 
         function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
 
-        // ── Load dữ liệu đã đặt từ Google Sheets ──────────────────────────────
+       // ── Load dữ liệu đã đặt từ Google Sheets ──────────────────────────────
         async function loadScheduleFromSheet() {
             document.getElementById('loading-indicator').style.display = 'flex';
             try {
-                // Dùng JSONP-style qua no-cors không đọc được response
-                // Phải dùng cors proxy hoặc Apps Script trả về JSONP / callback
-                // Cách đơn giản nhất: Apps Script doGet trả về JSON với callback
-                const res = await fetch(SCRIPT_URL + '?action=get', { method: 'GET' });
+                // Đã bỏ mode 'no-cors' để có thể đọc được dữ liệu JSON trả về
+                const res = await fetch(SCRIPT_URL + '?action=get'); 
                 const data = await res.json();
-                // data dạng: [{ day: "2025-06-14", hour: "10:00", people: 2 }, ...]
+                
                 if (Array.isArray(data)) {
                     data.forEach(row => {
                         const { day, hour, people } = row;
+                        // Kiểm tra định dạng ngày: Đảm bảo 'day' từ JSON trùng khớp định dạng yyyy-mm-dd
                         if (schedule[day] && schedule[day][hour] !== undefined) {
                             const count = parseInt(people) || 1;
                             for (let i = 0; i < count; i++) {
@@ -180,7 +179,7 @@
                     });
                 }
             } catch(e) {
-                console.warn('Không tải được lịch từ sheet:', e);
+                console.error('Lỗi khi tải lịch từ Sheet:', e);
             }
             document.getElementById('loading-indicator').style.display = 'none';
             renderSlots();
