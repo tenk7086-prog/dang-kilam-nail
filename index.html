@@ -13,8 +13,23 @@
         .page-sub{font-size:13px;color:#86868b;margin-bottom:1rem;}
         .card{background:#fff;border:0.5px solid #d2d2d7;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
         .card-title{font-size:12px;font-weight:500;color:#86868b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
-        .day-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:1rem;padding-bottom:4px;scrollbar-width:none;}
+
+        /* Cuộn ngày: hỗ trợ scroll dọc (mousewheel) + kéo chuột ngang */
+        .day-tabs{
+            display:flex;gap:6px;
+            overflow-x:auto;
+            overflow-y:hidden;
+            -webkit-overflow-scrolling:touch;
+            touch-action:pan-x;
+            margin-bottom:1rem;
+            padding-bottom:6px;
+            scrollbar-width:none;
+            user-select:none;
+            cursor:grab;
+        }
+        .day-tabs.dragging{cursor:grabbing;}
         .day-tabs::-webkit-scrollbar{display:none;}
+
         .day-tab{flex-shrink:0;padding:6px 12px;border-radius:8px;border:0.5px solid #d2d2d7;background:#fff;cursor:pointer;text-align:center;min-width:60px;}
         .day-tab .wd{font-size:11px;color:#86868b;margin-bottom:1px;}
         .day-tab .dt{font-size:13px;font-weight:500;color:#1d1d1f;}
@@ -65,12 +80,23 @@
         .btn-confirm:not(:disabled):active{transform:scale(.98);}
         .btn-cancel{width:100%;height:38px;border-radius:8px;border:0.5px solid #86868b;background:#fff;color:#86868b;font-size:13px;font-family:inherit;cursor:pointer;}
         .btn-cancel:hover{background:#f5f5f7;}
+
+        /* Success card styles */
+        .success-card{background:#fff;border:0.5px solid #d2d2d7;border-radius:12px;padding:1.25rem;margin-bottom:1rem;}
+        .success-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:0.5px solid #d2d2d7;}
+        .success-icon{width:40px;height:40px;border-radius:50%;background:#FBEAF0;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .success-rows{border:0.5px solid #d2d2d7;border-radius:8px;overflow:hidden;margin-bottom:14px;}
+        .success-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;font-size:13px;border-bottom:0.5px solid #d2d2d7;}
+        .success-row:last-child{border-bottom:none;}
+        .success-row .sl{color:#86868b;}.success-row .sv{color:#1d1d1f;font-weight:500;}
+        .btn-back{width:100%;height:38px;border-radius:8px;border:0.5px solid #86868b;background:#fff;color:#86868b;font-size:13px;font-family:inherit;cursor:pointer;}
+        .btn-back:hover{background:#f5f5f7;}
     </style>
 </head>
 <body>
     <div class="wrap">
         <p class="page-title"><i class="ti ti-sparkles" aria-hidden="true" style="font-size:18px;vertical-align:-2px;margin-right:6px;color:#D4537E;"></i>Đặt lịch làm nail</p>
-        <p class="page-sub">Mỗi khung giờ nhận tối đa 2 người — bấm vào giờ để đặt chỗ</p>
+        <p class="page-sub">Mọi thắc mắc hoặc nhu cầu tư vấn, vui lòng liên hệ qua Zalo số 0901 234 567 để được hỗ trợ nhanh nhất.</p>
         <div class="card" id="booking-form">
             <div class="card-title"><i class="ti ti-calendar" aria-hidden="true" style="font-size:14px;"></i> Chọn ngày</div>
             <div class="day-tabs" id="day-tabs"></div>
@@ -120,14 +146,12 @@
         </div>
     </div>
     <script>
-        // --- CẤU HÌNH ---
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbztAZ-8bjV0j52uQLh2KezsUh8ZAYh5bguYwW7G9xgPuUhS7OR1pgHOhbJDsu6RaBTd/exec"; 
-        // ----------------
-        
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbztAZ-8bjV0j52uQLh2KezsUh8ZAYh5bguYwW7G9xgPuUhS7OR1pgHOhbJDsu6RaBTd/exec";
+
         const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
         const MAX = 2;
         let schedule = {}; let selectedDay = null; let selectedHour = null; let numPeople = 1;
-        
+
         function getNext10Days() {
             const days = []; const today = new Date(); today.setHours(0,0,0,0);
             for (let i = 0; i < 11; i++) {
@@ -138,9 +162,9 @@
             return days;
         }
         const DAYS_LIST = getNext10Days();
-        
+
         function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
-        
+
         function renderDayTabs() {
             const c = document.getElementById('day-tabs'); c.innerHTML = '';
             DAYS_LIST.forEach(({date,key},i) => {
@@ -151,9 +175,9 @@
                 c.appendChild(btn);
             });
         }
-        
+
         function slotAvail(key,h) { return MAX-(schedule[key][h]?schedule[key][h].length:0); }
-        
+
         function renderSlots() {
             const grid = document.getElementById('slots-grid');
             if (!selectedDay) { grid.innerHTML='<p style="font-size:13px;color:#86868b;padding:8px 0;">Chọn ngày...</p>'; return; }
@@ -163,14 +187,14 @@
                 const btn = document.createElement('button');
                 btn.className='slot-btn'+(isFull?' full-slot':'')+(selectedHour===h&&!isFull?' selected':'');
                 const dotClass=isFull?'dot-full':avail===1?'dot-half':'dot-open';
-                const statusTxt=isFull?'Đã đủ':avail===1?'Còn 1 chỗ':'Còn 2 chỗ';
+                const statusTxt=isFull?'Đã đủ chỗ':avail===1?'Còn 1 chỗ':'Còn 2 chỗ';
                 const endH=parseInt(h)+1;
                 btn.innerHTML='<div class="slot-time">'+h+' – '+(endH<10?'0':'')+endH+':00</div><div class="slot-status"><span class="dot '+dotClass+'"></span>'+statusTxt+'</div>';
                 if (!isFull) btn.onclick = () => selectHour(h);
                 grid.appendChild(btn);
             });
         }
-        
+
         function selectHour(h) {
             selectedHour = h; renderSlots();
             const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
@@ -178,35 +202,125 @@
             document.getElementById('selected-label').textContent = wdLabel(dayObj.date)+' · '+h+' – '+endH+':00';
             showInfoPanel();
         }
-        
+
         function showInfoPanel() { document.getElementById('info-panel').classList.add('open'); }
         function hideInfoPanel() { document.getElementById('info-panel').classList.remove('open'); }
         function setPeople(n) { numPeople = n; document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v===n)); }
-        
+
         function openReview() {
             const name = document.getElementById('inp-name').value.trim();
             const phone = document.getElementById('inp-phone').value.trim();
-            if (!name || !phone) { alert('Vui lòng nhập tên và SĐT'); return; }
+            if (!name) { showToast('Vui lòng nhập tên'); return; }
+            if (!phone) { showToast('Vui lòng nhập số điện thoại'); return; }
+
+            const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
+            const endH = parseInt(selectedHour)+1;
+            const timeLabel = wdLabel(dayObj.date)+', '+dayObj.date.getDate()+'/'+(dayObj.date.getMonth()+1)+' · '+selectedHour+' – '+(endH<10?'0':'')+endH+':00';
+
+            const avail = slotAvail(selectedDay, selectedHour);
+            if (numPeople > avail) {
+                showToast('Khung giờ này chỉ còn ' + avail + ' chỗ, không đủ cho ' + numPeople + ' người');
+                return;
+            }
+
+            const rows = [
+                { label: 'Tên khách', value: name },
+                { label: 'Số điện thoại', value: phone },
+                { label: 'Ngày & giờ', value: timeLabel },
+                { label: 'Số người', value: numPeople + ' người' },
+            ];
+            const container = document.getElementById('review-rows');
+            container.innerHTML = rows.map(r =>
+                '<div class="review-row"><span class="rl">'+r.label+'</span><span class="rv">'+r.value+'</span></div>'
+            ).join('');
+
             document.getElementById('overlay').classList.add('show');
         }
-        
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast error show';
+            setTimeout(() => { t.className = 'toast'; }, 3000);
+        }
+
         function closeReview() { document.getElementById('overlay').classList.remove('show'); }
-        
+        function closeReviewOutside(e) { if (e.target===document.getElementById('overlay')) closeReview(); }
+
         function doRegister() {
-            // Sau khi có SCRIPT_URL, đoạn code này sẽ thực hiện fetch() gửi dữ liệu về Google Sheets
-            alert("Đặt lịch thành công!");
+            const name = document.getElementById('inp-name').value.trim();
+            const phone = document.getElementById('inp-phone').value.trim();
+            const dayObj = DAYS_LIST.find(d=>d.key===selectedDay);
+            const endH = parseInt(selectedHour)+1;
+            const timeLabel = wdLabel(dayObj.date)+', '+dayObj.date.getDate()+'/'+(dayObj.date.getMonth()+1)+' · '+selectedHour+' – '+(endH<10?'0':'')+endH+':00';
+
+            for (let i = 0; i < numPeople; i++) {
+                schedule[selectedDay][selectedHour].push({ name, phone });
+            }
+
+            const successRows = [
+                { label: 'Tên khách', value: name },
+                { label: 'Số điện thoại', value: phone },
+                { label: 'Ngày & giờ', value: timeLabel },
+                { label: 'Số người', value: numPeople + ' người' },
+            ];
+            document.getElementById('success-rows').innerHTML = successRows.map(r =>
+                '<div class="success-row"><span class="sl">'+r.label+'</span><span class="sv">'+r.value+'</span></div>'
+            ).join('');
+
             closeReview();
             document.getElementById('booking-form').style.display = 'none';
             document.getElementById('success-card').style.display = 'block';
+
+            document.getElementById('inp-name').value = '';
+            document.getElementById('inp-phone').value = '';
+            selectedHour = null;
+            numPeople = 1;
+            setPeople(1);
         }
-        
+
         function backToForm() {
             document.getElementById('success-card').style.display = 'none';
             document.getElementById('booking-form').style.display = 'block';
+            hideInfoPanel();
+            renderSlots();
         }
 
         selectedDay = DAYS_LIST[0].key;
         renderDayTabs(); renderSlots();
+
+        (function() {
+            const el = document.getElementById('day-tabs');
+            let isDragging = false, startX = 0, scrollLeft = 0, moved = false;
+
+            el.addEventListener('mousedown', e => {
+                isDragging = true; moved = false;
+                startX = e.pageX - el.offsetLeft;
+                scrollLeft = el.scrollLeft;
+                el.classList.add('dragging');
+            });
+            document.addEventListener('mousemove', e => {
+                if (!isDragging) return;
+                const x = e.pageX - el.offsetLeft;
+                const dist = x - startX;
+                if (Math.abs(dist) > 3) moved = true;
+                el.scrollLeft = scrollLeft - dist;
+            });
+            document.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                el.classList.remove('dragging');
+            });
+            el.addEventListener('click', e => {
+                if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+            }, true);
+
+            el.addEventListener('wheel', e => {
+                if (e.deltaY === 0) return;
+                e.preventDefault();
+                el.scrollLeft += e.deltaY;
+            }, { passive: false });
+        })();
     </script>
 </body>
 </html>
