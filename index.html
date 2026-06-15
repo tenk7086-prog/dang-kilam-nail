@@ -203,9 +203,12 @@ function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
 function saveField(k, v) { try { localStorage.setItem('nail_' + k, v); } catch(e) {} }
 function loadField(k, def) { try { const v = localStorage.getItem('nail_' + k); return v !== null ? v : def; } catch(e) { return def; } }
 function clearSavedBooking() {
-  // Chỉ xoá dữ liệu đặt lịch, giữ lại tên & SĐT để tiện đặt lần sau
+  // Chỉ xoá lựa chọn đặt lịch, giữ lại tên & SĐT
   ['selectedDay','selectedHour','numPeople'].forEach(k => localStorage.removeItem('nail_' + k));
 }
+
+// Schedule KHÔNG bao giờ được cache — luôn fetch fresh từ sheet mỗi lần load
+// (không gọi saveField cho schedule)
 
 // ─── JSONP — đọc dữ liệu từ Sheet không bị CORS ──────────────
 function jsonpFetch(url) {
@@ -271,6 +274,21 @@ async function sendBooking(params) {
   await fetch(SCRIPT_URL + '?' + qs, { method: 'GET', mode: 'no-cors' });
 }
 
+// ─── ĐỔI NGÀY (dùng chung) ───────────────────────────────────
+function selectDay(key) {
+  selectedDay = key;
+  selectedHour = null;
+  saveField('selectedDay', key);
+  saveField('selectedHour', '');
+  hideInfoPanel();
+  renderDayTabs();
+  renderSlots();
+  // Cuộn tab ngày đến vị trí đang chọn
+  const c = document.getElementById('day-tabs');
+  const active = c.querySelector('.day-tab.active');
+  if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
 // ─── RENDER NGÀY ─────────────────────────────────────────────
 function renderDayTabs() {
   const c = document.getElementById('day-tabs');
@@ -282,23 +300,18 @@ function renderDayTabs() {
       '<div class="wd">' + wdLabel(date) + (i === 0 ? ' <span class="pill-today">hôm nay</span>' : '') + '</div>' +
       '<div class="dt">' + date.getDate() + '/' + (date.getMonth()+1) + '</div>';
     btn.addEventListener('click', () => {
-      if (isDragging) return; // Không chọn khi đang kéo
-      selectedDay = key;
-      selectedHour = null;
-      saveField('selectedDay', key);
-      saveField('selectedHour', '');
-      hideInfoPanel();
-      renderDayTabs();
-      renderSlots();
+      if (c._isDragging) return;
+      selectDay(key);
     });
     c.appendChild(btn);
   });
 
-  // ── Drag-to-scroll ──────────────────────────────────────────
-  let startX = 0, scrollLeft = 0, isDragging = false;
+  // ── Drag-to-scroll (kéo ngang chuột) ───────────────────────
+  let startX = 0, scrollLeft = 0;
+  c._isDragging = false;
 
   c.addEventListener('mousedown', e => {
-    isDragging = false;
+    c._isDragging = false;
     startX = e.pageX - c.offsetLeft;
     scrollLeft = c.scrollLeft;
     c._mousedown = true;
@@ -307,18 +320,43 @@ function renderDayTabs() {
   c.addEventListener('mousemove', e => {
     if (!c._mousedown) return;
     const dx = e.pageX - c.offsetLeft - startX;
-    if (Math.abs(dx) > 4) isDragging = true; // Phân biệt click vs drag
+    if (Math.abs(dx) > 4) c._isDragging = true;
     c.scrollLeft = scrollLeft - dx;
   });
   ['mouseup','mouseleave'].forEach(ev => {
     c.addEventListener(ev, () => {
       c._mousedown = false;
       c.classList.remove('is-dragging');
-      // Đặt cờ để click handler bỏ qua nếu vừa kéo
-      setTimeout(() => { isDragging = false; }, 0);
+      setTimeout(() => { c._isDragging = false; }, 0);
     });
   });
-  // Touch — trình duyệt xử lý native với overflow-x:auto
+
+  // ── Scroll dọc chuột / trackpad → đổi ngày ─────────────────
+  c.addEventListener('wheel', e => {
+    e.preventDefault(); // Ngăn trang cuộn dọc
+    const dir = e.deltaY > 0 || e.deltaX > 0 ? 1 : -1; // xuống/phải = ngày sau
+    const curIdx = DAYS_LIST.findIndex(d => d.key === selectedDay);
+    const nextIdx = Math.max(0, Math.min(DAYS_LIST.length - 1, curIdx + dir));
+    if (nextIdx !== curIdx) selectDay(DAYS_LIST[nextIdx].key);
+  }, { passive: false });
+
+  // Touch swipe dọc trên tab → đổi ngày (mobile)
+  let touchStartY = 0, touchStartX = 0;
+  c.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+  c.addEventListener('touchend', e => {
+    const dy = touchStartY - e.changedTouches[0].clientY;
+    const dx = touchStartX - e.changedTouches[0].clientX;
+    // Chỉ xử lý swipe dọc rõ ràng (dy lớn hơn dx)
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 30) {
+      const dir = dy > 0 ? 1 : -1;
+      const curIdx = DAYS_LIST.findIndex(d => d.key === selectedDay);
+      const nextIdx = Math.max(0, Math.min(DAYS_LIST.length - 1, curIdx + dir));
+      if (nextIdx !== curIdx) selectDay(DAYS_LIST[nextIdx].key);
+    }
+  }, { passive: true });
 }
 
 // ─── RENDER KHUNG GIỜ ────────────────────────────────────────
@@ -458,24 +496,17 @@ function backToForm() {
 
 // ─── KHỞI TẠO ────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  // Khôi phục dữ liệu đã lưu
+  // Mỗi lần tải web: luôn bắt đầu từ ngày hôm nay, không khôi phục slot cũ
+  selectedDay = DAYS_LIST[0].key;
+  selectedHour = null;
+  numPeople = 1;
+  setPeople(1);
+
+  // Chỉ giữ lại tên & SĐT cho tiện (không giữ ngày/giờ/slot)
   try {
-    const savedDay = loadField('selectedDay', '');
-    const validDay = DAYS_LIST.find(d => d.key === savedDay);
-    selectedDay = validDay ? savedDay : DAYS_LIST[0].key;
-
-    const savedHour = loadField('selectedHour', '');
-    selectedHour = HOURS.includes(savedHour) ? savedHour : null;
-
-    numPeople = parseInt(loadField('numPeople', '1')) || 1;
-    setPeople(numPeople);
-
-    // Giữ lại tên & SĐT
     document.getElementById('inp-name').value = loadField('name', '');
     document.getElementById('inp-phone').value = loadField('phone', '');
-  } catch(e) {
-    selectedDay = DAYS_LIST[0].key;
-  }
+  } catch(e) {}
 
   // Lưu tên/SĐT khi gõ
   document.getElementById('inp-name').addEventListener('input', e => saveField('name', e.target.value));
@@ -483,18 +514,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   renderDayTabs();
   renderSlots();
-  loadScheduleFromSheet(); // Tải lịch từ sheet
-
-  // Nếu có giờ đã chọn từ lần trước, hiển thị lại info panel
-  if (selectedHour) {
-    const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
-    if (dayObj) {
-      const endH = parseInt(selectedHour) + 1;
-      document.getElementById('selected-label').textContent =
-        wdLabel(dayObj.date) + ' · ' + selectedHour + ' – ' + (endH < 10 ? '0' : '') + endH + ':00';
-      document.getElementById('info-panel').classList.add('open');
-    }
-  }
+  loadScheduleFromSheet(); // Luôn fetch lịch mới từ sheet — không dùng cache
 });
 </script>
 </body>
