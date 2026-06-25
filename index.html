@@ -259,16 +259,16 @@
 // ─── CẤU HÌNH ────────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwH7XLqY7nDsl9f8JU0K_mlFYJUtA7KWraQIgwbC29-ZSxWfYXS9rOUpqJ708HGEfvi/exec";
 const ALL_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
-const SUNDAY_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00']; // Chủ nhật: 9h–14h (trước 15h)
+const SUNDAY_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00'];
 const MAX_DEFAULT = 2;
-const MAX_NOON = 1; // Khung 12h chỉ nhận 1 người
+const MAX_NOON = 1;
 
 // ─── STATE ───────────────────────────────────────────────────
 let schedule = {};
 let selectedDay = null;
 let selectedHour = null;
 let numPeople = 1;
-let cancelTarget = null; // { rowIndex, name, phone, day, hour, people }
+let cancelTarget = null;
 
 // ─── NGÀY ────────────────────────────────────────────────────
 function getNext14Days() {
@@ -322,23 +322,28 @@ function jsonpFetch(url) {
   });
 }
 
+// ─── HÀM DÙNG CHUNG: nạp dữ liệu từ sheet vào schedule ──────
+function applyDataToSchedule(data) {
+  DAYS_LIST.forEach(({ date, key }) => {
+    getHoursForDate(date).forEach(h => { schedule[key][h] = []; });
+  });
+  if (Array.isArray(data)) {
+    data.forEach(row => {
+      const { day, hour, people, name, phone } = row;
+      if (schedule[day] && schedule[day][hour] !== undefined) {
+        const count = parseInt(people) || 1;
+        for (let i = 0; i < count; i++) schedule[day][hour].push({ name, phone });
+      }
+    });
+  }
+}
+
 // ─── TẢI LỊCH TỪ SHEET ───────────────────────────────────────
 async function loadScheduleFromSheet() {
   document.getElementById('loading-indicator').style.display = 'flex';
   try {
-    DAYS_LIST.forEach(({ date, key }) => {
-      getHoursForDate(date).forEach(h => { schedule[key][h] = []; });
-    });
     const data = await jsonpFetch(SCRIPT_URL + '?action=get');
-    if (Array.isArray(data)) {
-      data.forEach(row => {
-        const { day, hour, people, name, phone } = row;
-        if (schedule[day] && schedule[day][hour] !== undefined) {
-          const count = parseInt(people) || 1;
-          for (let i = 0; i < count; i++) schedule[day][hour].push({ name, phone });
-        }
-      });
-    }
+    applyDataToSchedule(data);
   } catch(err) {
     console.warn('Không tải được lịch từ sheet:', err.message);
   }
@@ -439,7 +444,6 @@ function renderSlots() {
   const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
   const hours = getHoursForDate(dayObj.date);
 
-  // Thông báo nếu là Chủ nhật
   if (dayObj.date.getDay() === 0) {
     const note = document.createElement('div');
     note.style.cssText = 'grid-column:1/-1;font-size:12px;color:#EF9F27;background:#FEF9EE;border:0.5px solid #F9D77E;border-radius:8px;padding:8px 10px;margin-bottom:4px;display:flex;align-items:center;gap:6px;';
@@ -475,7 +479,6 @@ function selectHour(h) {
     wdLabel(dayObj.date) + ' · ' + h + ' – ' + (endH < 10 ? '0' : '') + endH + ':00';
   document.getElementById('info-panel').classList.add('open');
 
-  // Ẩn nút 2 người nếu khung 12h
   const btn2 = document.querySelector('.people-btn[data-v="2"]');
   if (h === '12:00') {
     btn2.disabled = true;
@@ -533,18 +536,46 @@ function showToast(msg, type, id) {
 function closeReview() { document.getElementById('overlay').classList.remove('show'); }
 function closeReviewOutside(e) { if (e.target === document.getElementById('overlay')) closeReview(); }
 
-// ─── XÁC NHẬN ĐẶT LỊCH ──────────────────────────────────────
+// ─── XÁC NHẬN ĐẶT LỊCH (có kiểm tra lại slot trước khi ghi) ─
 async function doRegister() {
   const btn = document.getElementById('btn-confirm');
   const name = document.getElementById('inp-name').value.trim();
   const phone = document.getElementById('inp-phone').value.trim();
+
   btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang kiểm tra...';
+
+  // ── BƯỚC 1: Tải lại schedule mới nhất để tránh race condition ──
+  try {
+    const freshData = await jsonpFetch(SCRIPT_URL + '?action=get');
+    applyDataToSchedule(freshData);
+    renderSlots(); // cập nhật UI với dữ liệu mới nhất
+  } catch(err) {
+    // Nếu không tải được, vẫn cho tiếp tục với dữ liệu cũ (fallback)
+    console.warn('Không tải được schedule mới, dùng dữ liệu cũ:', err.message);
+  }
+
+  // ── BƯỚC 2: Kiểm tra lại slot sau khi có dữ liệu mới nhất ──
+  const maxSlot = getMaxForHour(selectedHour);
+  const avail = maxSlot - (schedule[selectedDay][selectedHour] || []).length;
+  if (numPeople > avail) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
+    closeReview();
+    showToast('Rất tiếc, khung giờ này vừa hết chỗ. Vui lòng chọn giờ khác.');
+    return;
+  }
+
+  // ── BƯỚC 3: Ghi booking ──
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang gửi...';
   try {
     await sendBooking({ name, phone, day: selectedDay, hour: selectedHour, people: numPeople });
+
+    // Cập nhật local schedule ngay lập tức
     if (schedule[selectedDay] && schedule[selectedDay][selectedHour] !== undefined) {
       for (let i = 0; i < numPeople; i++) schedule[selectedDay][selectedHour].push({ name, phone });
     }
+
     const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
     const timeLabel = wdLabel(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
     document.getElementById('success-rows').innerHTML = [
@@ -553,6 +584,7 @@ async function doRegister() {
       { l:'Ngày & giờ', v: timeLabel },
       { l:'Số người', v: numPeople + ' người' }
     ].map(r => '<div class="success-row"><span class="sl">' + r.l + '</span><span class="sv">' + r.v + '</span></div>').join('');
+
     clearSavedBooking();
     closeReview();
     document.getElementById('booking-form').style.display = 'none';
@@ -595,7 +627,6 @@ async function lookupBookings() {
     if (Array.isArray(data)) {
       data.forEach((row, idx) => {
         if (row.phone && row.phone.replace(/\s/g,'') === phone.replace(/\s/g,'')) {
-          // Chỉ hiện lịch từ hôm nay trở đi
           const today = DAYS_LIST[0].key;
           if (row.day >= today) found.push({ ...row, rowIndex: idx });
         }
@@ -671,7 +702,6 @@ async function doCancelBooking() {
       hour: cancelTarget.hour
     });
 
-    // Cập nhật local schedule
     if (schedule[cancelTarget.day] && schedule[cancelTarget.day][cancelTarget.hour]) {
       const arr = schedule[cancelTarget.day][cancelTarget.hour];
       const idx = arr.findIndex(e => e.phone === cancelTarget.phone && e.name === cancelTarget.name);
@@ -681,7 +711,6 @@ async function doCancelBooking() {
     closeCancelSheet();
     cancelTarget = null;
     showToast('Hủy lịch thành công', 'success', 'cancel-toast');
-    // Reload danh sách
     setTimeout(() => lookupBookings(), 500);
   } catch(err) {
     btn.disabled = false;
