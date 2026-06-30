@@ -17,12 +17,10 @@
     .card{background:#fff;border:0.5px solid #d2d2d7;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
     .card-title{font-size:12px;font-weight:500;color:#86868b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
 
-    /* Tabs chức năng */
     .func-tabs{display:flex;gap:8px;margin-bottom:1rem;}
     .func-tab{flex:1;height:38px;border-radius:8px;border:0.5px solid #d2d2d7;background:#fff;color:#86868b;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;}
     .func-tab.active{border-color:#D4537E;background:#FBEAF0;color:#993556;}
 
-    /* Day tabs — drag scroll */
     .day-tabs{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin-bottom:1rem;padding-bottom:6px;scrollbar-width:none;user-select:none;cursor:grab;}
     .day-tabs.is-dragging{cursor:grabbing;}
     .day-tabs::-webkit-scrollbar{display:none;}
@@ -65,7 +63,6 @@
     .toast.error{background:#FCEBEB;color:#A32D2D;border:0.5px solid #F09595;}
     .toast.success{background:#E6F7F1;color:#1D6B4D;border:0.5px solid #6ECFAA;}
 
-    /* Hủy lịch */
     .cancel-section{display:none;}
     .cancel-section.active{display:block;}
     .cancel-lookup-row{display:flex;gap:8px;margin-bottom:12px;}
@@ -118,7 +115,6 @@
     <i class="ti ti-sparkles" style="font-size:18px;vertical-align:-2px;margin-right:6px;color:#D4537E;"></i>Đặt lịch làm nail
   </p>
 
-  <!-- ===== INFO BAR: địa chỉ + zalo ===== -->
   <div class="info-bar">
     <div class="info-item">
       <i class="ti ti-map-pin" style="font-size:14px;color:#D4537E;flex-shrink:0;"></i>
@@ -136,7 +132,6 @@
     </div>
   </div>
 
-  <!-- Tabs chức năng -->
   <div class="func-tabs">
     <button class="func-tab active" id="tab-book" onclick="switchTab('book')">
       <i class="ti ti-calendar-plus" style="font-size:15px;"></i> Đặt lịch
@@ -146,7 +141,6 @@
     </button>
   </div>
 
-  <!-- ===== ĐẶT LỊCH ===== -->
   <div id="booking-section">
     <div class="card" id="booking-form">
       <div class="card-title"><i class="ti ti-calendar" style="font-size:14px;"></i> Chọn ngày</div>
@@ -209,7 +203,6 @@
     </div>
   </div>
 
-  <!-- ===== HỦY LỊCH ===== -->
   <div id="cancel-section" style="display:none;">
     <div class="card">
       <div class="card-title"><i class="ti ti-search" style="font-size:14px;"></i> Tra cứu lịch đặt</div>
@@ -231,7 +224,6 @@
   </div>
 </div>
 
-<!-- Sheet xác nhận đặt lịch -->
 <div class="overlay" id="overlay" onclick="closeReviewOutside(event)">
   <div class="sheet" id="sheet">
     <div class="sheet-handle"></div>
@@ -245,7 +237,6 @@
   </div>
 </div>
 
-<!-- Sheet xác nhận hủy lịch -->
 <div class="overlay" id="overlay-cancel" onclick="closeCancelSheetOutside(event)">
   <div class="sheet" id="sheet-cancel">
     <div class="sheet-handle"></div>
@@ -260,21 +251,18 @@
 </div>
 
 <script>
-// ─── CẤU HÌNH ────────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwH7XLqY7nDsl9f8JU0K_mlFYJUtA7KWraQIgwbC29-ZSxWfYXS9rOUpqJ708HGEfvi/exec";
 const ALL_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
 const SUNDAY_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00'];
 const MAX_DEFAULT = 2;
 const MAX_NOON = 1;
 
-// ─── STATE ───────────────────────────────────────────────────
 let schedule = {};
 let selectedDay = null;
 let selectedHour = null;
 let numPeople = 1;
 let cancelTarget = null;
 
-// ─── NGÀY ────────────────────────────────────────────────────
 function getNext14Days() {
   const days = [];
   const now = new Date();
@@ -301,14 +289,24 @@ function getMaxForHour(hour) {
 const DAYS_LIST = getNext14Days();
 function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
 
-// ─── LOCALSTORAGE ─────────────────────────────────────────────
+// ─── CHUẨN HOÁ SỐ ĐIỆN THOẠI (+84 / 84 → 0) ──────────────────
+function normalizePhone(raw) {
+  if (!raw) return raw;
+  let p = String(raw).trim().replace(/[\s.\-]/g, '');
+  if (p.startsWith('+84')) {
+    p = '0' + p.slice(3);
+  } else if (p.startsWith('84') && p.length >= 10) {
+    p = '0' + p.slice(2);
+  }
+  return p;
+}
+
 function saveField(k, v) { try { localStorage.setItem('nail_' + k, v); } catch(e) {} }
 function loadField(k, def) { try { const v = localStorage.getItem('nail_' + k); return v !== null ? v : def; } catch(e) { return def; } }
 function clearSavedBooking() {
   ['selectedDay','selectedHour','numPeople'].forEach(k => localStorage.removeItem('nail_' + k));
 }
 
-// ─── JSONP ───────────────────────────────────────────────────
 function jsonpFetch(url) {
   return new Promise((resolve, reject) => {
     const cbName = '__nail_cb_' + Date.now();
@@ -326,7 +324,6 @@ function jsonpFetch(url) {
   });
 }
 
-// ─── HÀM DÙNG CHUNG: nạp dữ liệu từ sheet vào schedule ──────
 function applyDataToSchedule(data) {
   DAYS_LIST.forEach(({ date, key }) => {
     getHoursForDate(date).forEach(h => { schedule[key][h] = []; });
@@ -342,7 +339,6 @@ function applyDataToSchedule(data) {
   }
 }
 
-// ─── TẢI LỊCH TỪ SHEET ───────────────────────────────────────
 async function loadScheduleFromSheet() {
   document.getElementById('loading-indicator').style.display = 'flex';
   try {
@@ -355,19 +351,16 @@ async function loadScheduleFromSheet() {
   renderSlots();
 }
 
-// ─── GỬI BOOKING ─────────────────────────────────────────────
 async function sendBooking(params) {
   const qs = new URLSearchParams({ action: 'set', ...params }).toString();
   await fetch(SCRIPT_URL + '?' + qs, { method: 'GET', mode: 'no-cors' });
 }
 
-// ─── GỬI HỦY BOOKING ─────────────────────────────────────────
 async function sendCancelBooking(params) {
   const qs = new URLSearchParams({ action: 'cancel', ...params }).toString();
   await fetch(SCRIPT_URL + '?' + qs, { method: 'GET', mode: 'no-cors' });
 }
 
-// ─── SWITCH TAB ──────────────────────────────────────────────
 function switchTab(tab) {
   const isBook = tab === 'book';
   document.getElementById('tab-book').classList.toggle('active', isBook);
@@ -376,7 +369,6 @@ function switchTab(tab) {
   document.getElementById('cancel-section').style.display = isBook ? 'none' : 'block';
 }
 
-// ─── ĐỔI NGÀY ────────────────────────────────────────────────
 function selectDay(key) {
   selectedDay = key;
   selectedHour = null;
@@ -390,7 +382,6 @@ function selectDay(key) {
   if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
 
-// ─── RENDER NGÀY ─────────────────────────────────────────────
 function renderDayTabs() {
   const c = document.getElementById('day-tabs');
   c.innerHTML = '';
@@ -440,7 +431,6 @@ function renderDayTabs() {
   }, { passive: true });
 }
 
-// ─── RENDER KHUNG GIỜ ────────────────────────────────────────
 function renderSlots() {
   const grid = document.getElementById('slots-grid');
   if (!selectedDay) { grid.innerHTML = ''; return; }
@@ -504,10 +494,9 @@ function setPeople(n) {
   document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v === n));
 }
 
-// ─── XEM LẠI ─────────────────────────────────────────────────
 function openReview() {
   const name = document.getElementById('inp-name').value.trim();
-  const phone = document.getElementById('inp-phone').value.trim();
+  const phone = normalizePhone(document.getElementById('inp-phone').value.trim());
   if (!name) { showToast('Vui lòng nhập tên'); return; }
   if (!phone) { showToast('Vui lòng nhập số điện thoại'); return; }
   if (!selectedHour) { showToast('Vui lòng chọn khung giờ'); return; }
@@ -540,26 +529,22 @@ function showToast(msg, type, id) {
 function closeReview() { document.getElementById('overlay').classList.remove('show'); }
 function closeReviewOutside(e) { if (e.target === document.getElementById('overlay')) closeReview(); }
 
-// ─── XÁC NHẬN ĐẶT LỊCH (có kiểm tra lại slot trước khi ghi) ─
 async function doRegister() {
   const btn = document.getElementById('btn-confirm');
   const name = document.getElementById('inp-name').value.trim();
-  const phone = document.getElementById('inp-phone').value.trim();
+  const phone = normalizePhone(document.getElementById('inp-phone').value.trim());
 
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang kiểm tra...';
 
-  // ── BƯỚC 1: Tải lại schedule mới nhất để tránh race condition ──
   try {
     const freshData = await jsonpFetch(SCRIPT_URL + '?action=get');
     applyDataToSchedule(freshData);
-    renderSlots(); // cập nhật UI với dữ liệu mới nhất
+    renderSlots();
   } catch(err) {
-    // Nếu không tải được, vẫn cho tiếp tục với dữ liệu cũ (fallback)
     console.warn('Không tải được schedule mới, dùng dữ liệu cũ:', err.message);
   }
 
-  // ── BƯỚC 2: Kiểm tra lại slot sau khi có dữ liệu mới nhất ──
   const maxSlot = getMaxForHour(selectedHour);
   const avail = maxSlot - (schedule[selectedDay][selectedHour] || []).length;
   if (numPeople > avail) {
@@ -570,12 +555,10 @@ async function doRegister() {
     return;
   }
 
-  // ── BƯỚC 3: Ghi booking ──
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang gửi...';
   try {
     await sendBooking({ name, phone, day: selectedDay, hour: selectedHour, people: numPeople });
 
-    // Cập nhật local schedule ngay lập tức
     if (schedule[selectedDay] && schedule[selectedDay][selectedHour] !== undefined) {
       for (let i = 0; i < numPeople; i++) schedule[selectedDay][selectedHour].push({ name, phone });
     }
@@ -601,7 +584,6 @@ async function doRegister() {
   }
 }
 
-// ─── QUAY LẠI ────────────────────────────────────────────────
 function backToForm() {
   selectedDay = DAYS_LIST[0].key;
   selectedHour = null;
@@ -615,9 +597,8 @@ function backToForm() {
   loadScheduleFromSheet();
 }
 
-// ─── TRA CỨU LỊCH ────────────────────────────────────────────
 async function lookupBookings() {
-  const phone = document.getElementById('cancel-phone').value.trim();
+  const phone = normalizePhone(document.getElementById('cancel-phone').value.trim());
   if (!phone) { showToast('Vui lòng nhập số điện thoại', 'error', 'cancel-toast'); return; }
 
   document.getElementById('cancel-loading').style.display = 'block';
@@ -630,7 +611,7 @@ async function lookupBookings() {
     const found = [];
     if (Array.isArray(data)) {
       data.forEach((row, idx) => {
-        if (row.phone && row.phone.replace(/\s/g,'') === phone.replace(/\s/g,'')) {
+        if (row.phone && normalizePhone(row.phone) === phone) {
           const today = DAYS_LIST[0].key;
           if (row.day >= today) found.push({ ...row, rowIndex: idx });
         }
@@ -670,7 +651,6 @@ async function lookupBookings() {
   }
 }
 
-// ─── SHEET XÁC NHẬN HỦY ──────────────────────────────────────
 function openCancelSheet(row) {
   cancelTarget = row;
   const dayDate = new Date(row.day);
@@ -723,7 +703,6 @@ async function doCancelBooking() {
   }
 }
 
-// ─── ENTER key tra cứu ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cancel-phone').addEventListener('keydown', e => {
     if (e.key === 'Enter') lookupBookings();
@@ -741,6 +720,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('inp-name').addEventListener('input', e => saveField('name', e.target.value));
   document.getElementById('inp-phone').addEventListener('input', e => saveField('phone', e.target.value));
+  document.getElementById('inp-phone').addEventListener('blur', e => {
+    e.target.value = normalizePhone(e.target.value);
+    saveField('phone', e.target.value);
+  });
 
   renderDayTabs();
   renderSlots();
