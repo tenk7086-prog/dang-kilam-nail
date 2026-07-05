@@ -712,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isBookingTab && !document.hidden && !overlayOpen) {
       loadScheduleFromSheet(true); 
     }
-  }, 10000); // Tăng lên 10 giây để tối ưu hiệu năng máy chủ
+  }, 7000); // Tăng lên 10 giây để tối ưu hiệu năng máy chủ
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) loadScheduleFromSheet(true);
