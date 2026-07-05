@@ -263,7 +263,7 @@ let selectedHour = null;
 let numPeople = 1;
 let cancelTarget = null;
 
-function getNext14Days() {
+function getNext10Days() {
   const days = [];
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -353,12 +353,12 @@ async function loadScheduleFromSheet() {
 
 async function sendBooking(params) {
   const qs = new URLSearchParams({ action: 'set', ...params }).toString();
-  await fetch(SCRIPT_URL + '?' + qs, { method: 'GET', mode: 'no-cors' });
+  return await jsonpFetch(SCRIPT_URL + '?' + qs);
 }
 
 async function sendCancelBooking(params) {
   const qs = new URLSearchParams({ action: 'cancel', ...params }).toString();
-  await fetch(SCRIPT_URL + '?' + qs, { method: 'GET', mode: 'no-cors' });
+  return await jsonpFetch(SCRIPT_URL + '?' + qs);
 }
 
 function switchTab(tab) {
@@ -557,7 +557,17 @@ async function doRegister() {
 
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang gửi...';
   try {
-    await sendBooking({ name, phone, day: selectedDay, hour: selectedHour, people: numPeople });
+    const result = await sendBooking({ name, phone, day: selectedDay, hour: selectedHour, people: numPeople });
+
+    if (!result || result.success !== true) {
+      // Server từ chối (VD: khung giờ vừa hết chỗ do người khác đặt trước) — luôn tin server, tải lại lịch mới nhất
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
+      closeReview();
+      showToast('Rất tiếc, khung giờ này vừa hết chỗ. Vui lòng chọn giờ khác.');
+      await loadScheduleFromSheet();
+      return;
+    }
 
     if (schedule[selectedDay] && schedule[selectedDay][selectedHour] !== undefined) {
       for (let i = 0; i < numPeople; i++) schedule[selectedDay][selectedHour].push({ name, phone });
@@ -678,13 +688,21 @@ async function doCancelBooking() {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang hủy...';
   try {
-    await sendCancelBooking({
-      rowIndex: cancelTarget.rowIndex,
+    const result = await sendCancelBooking({
       name: cancelTarget.name,
       phone: cancelTarget.phone,
       day: cancelTarget.day,
       hour: cancelTarget.hour
     });
+
+    if (!result || result.success !== true) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-calendar-x" style="font-size:16px;"></i> Xác nhận hủy lịch';
+      showToast('Không tìm thấy lịch để hủy, có thể đã bị hủy trước đó', 'error', 'cancel-toast');
+      closeCancelSheet();
+      lookupBookings();
+      return;
+    }
 
     if (schedule[cancelTarget.day] && schedule[cancelTarget.day][cancelTarget.hour]) {
       const arr = schedule[cancelTarget.day][cancelTarget.hour];
@@ -728,6 +746,19 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDayTabs();
   renderSlots();
   loadScheduleFromSheet();
+
+  // ─── Tự động làm mới lịch để phản ánh gần real-time ─────────
+  setInterval(() => {
+    const isBookingTab = document.getElementById('booking-section').style.display !== 'none';
+    const overlayOpen = document.getElementById('overlay').classList.contains('show');
+    if (isBookingTab && !document.hidden && !overlayOpen) {
+      loadScheduleFromSheet();
+    }
+  }, 7000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) loadScheduleFromSheet();
+  });
 });
 </script>
 </body>
