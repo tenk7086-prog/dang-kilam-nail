@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -285,7 +286,6 @@ function getMaxForHour(hour) {
   return hour === '12:00' ? MAX_NOON : MAX_DEFAULT;
 }
 
-// FIX lỗi 1: Gọi đúng tên hàm getNext10Days() thay vì getNext14Days()
 const DAYS_LIST = getNext10Days(); 
 
 function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
@@ -535,8 +535,15 @@ async function doRegister() {
       btn.disabled = false;
       btn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
       closeReview();
-      showToast('Rất tiếc, khung giờ này vừa hết chỗ. Vui lòng chọn giờ khác.');
-      await loadScheduleFromSheet();
+      // FIX: phân biệt "hết chỗ thật" (error:"full") với lỗi khác
+      // (vd hệ thống đang bận vì quá nhiều người cùng đặt) — tránh
+      // báo sai "hết chỗ" khi thực ra chỉ là bận tạm thời.
+      if (result && result.error === 'full') {
+        showToast('Rất tiếc, khung giờ này vừa hết chỗ. Vui lòng chọn giờ khác.');
+        await loadScheduleFromSheet();
+      } else {
+        showToast('Hệ thống đang bận, vui lòng thử lại sau vài giây.');
+      }
       return;
     }
     if (schedule[selectedDay] && schedule[selectedDay][selectedHour] !== undefined) {
@@ -600,7 +607,6 @@ async function lookupBookings() {
     }
     listEl.innerHTML = '';
     found.forEach(row => {
-      // FIX lỗi 2: Tránh sử dụng new Date(row.day) trực tiếp bị lệch múi giờ
       const dateParts = row.day.split('-');
       const dayDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
       const wd = wdLabel(dayDate);
@@ -662,9 +668,16 @@ async function doCancelBooking() {
     if (!result || result.success !== true) {
       btn.disabled = false;
       btn.innerHTML = '<i class="ti ti-calendar-x" style="font-size:16px;"></i> Xác nhận hủy lịch';
-      showToast('Không tìm thấy lịch để hủy, có thể đã bị hủy trước đó', 'error', 'cancel-toast');
-      closeCancelSheet();
-      lookupBookings();
+      // FIX: phân biệt "không tìm thấy lịch" (error:"not_found") với
+      // lỗi khác (vd hệ thống đang bận) — tránh báo sai là đã bị hủy
+      // trước đó khi thực ra chỉ là bận tạm thời.
+      if (result && result.error === 'not_found') {
+        showToast('Không tìm thấy lịch để hủy, có thể đã bị hủy trước đó', 'error', 'cancel-toast');
+        closeCancelSheet();
+        lookupBookings();
+      } else {
+        showToast('Hệ thống đang bận, vui lòng thử lại sau vài giây.', 'error', 'cancel-toast');
+      }
       return;
     }
     if (schedule[cancelTarget.day] && schedule[cancelTarget.day][cancelTarget.hour]) {
@@ -705,17 +718,18 @@ document.addEventListener('DOMContentLoaded', () => {
   renderSlots();
   loadScheduleFromSheet();
 
-  // FIX lỗi 3: Thêm tham số true để chạy ở chế độ ngầm (silent), không gây chớp nháy giao diện
   setInterval(() => {
     const isBookingTab = document.getElementById('booking-section').style.display !== 'none';
     const overlayOpen = document.getElementById('overlay').classList.contains('show');
     if (isBookingTab && !document.hidden && !overlayOpen) {
       loadScheduleFromSheet(true); 
     }
-  }, 7000); // Tăng lên 10 giây để tối ưu hiệu năng máy chủ
+  }, 10000);
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) loadScheduleFromSheet(true);
   });
 });
 </script>
+</body>
+</html>
