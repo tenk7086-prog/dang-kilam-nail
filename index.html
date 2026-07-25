@@ -326,6 +326,27 @@ function jsonpFetch(url) {
   });
 }
 
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// FIX: retry có backoff cho các lỗi TẠM THỜI (timeout, mất mạng tức thời,
+// hoặc backend đang bận do quá tải) — giúp tự phục hồi thay vì báo lỗi
+// ngay cho người dùng. Mặc định thử tối đa 3 lần: chờ 1s, rồi 2s, rồi 4s
+// giữa các lần thử (không tính lần đầu).
+async function jsonpFetchWithRetry(url, maxRetries = 2) {
+  let lastErr;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await jsonpFetch(url);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxRetries) {
+        await sleep(1000 * Math.pow(2, attempt)); // 1s, 2s, 4s...
+      }
+    }
+  }
+  throw lastErr;
+}
+
 function applyDataToSchedule(data) {
   DAYS_LIST.forEach(({ date, key }) => {
     getHoursForDate(date).forEach(h => { schedule[key][h] = []; });
@@ -344,7 +365,7 @@ function applyDataToSchedule(data) {
 async function loadScheduleFromSheet(silent = false) {
   if (!silent) document.getElementById('loading-indicator').style.display = 'flex';
   try {
-    const data = await jsonpFetch(SCRIPT_URL + '?action=get');
+    const data = await jsonpFetchWithRetry(SCRIPT_URL + '?action=get');
     applyDataToSchedule(data);
   } catch(err) {
     console.warn('Không tải được lịch từ sheet:', err.message);
@@ -355,12 +376,12 @@ async function loadScheduleFromSheet(silent = false) {
 
 async function sendBooking(params) {
   const qs = new URLSearchParams({ action: 'set', ...params }).toString();
-  return await jsonpFetch(SCRIPT_URL + '?' + qs);
+  return await jsonpFetchWithRetry(SCRIPT_URL + '?' + qs);
 }
 
 async function sendCancelBooking(params) {
   const qs = new URLSearchParams({ action: 'cancel', ...params }).toString();
-  return await jsonpFetch(SCRIPT_URL + '?' + qs);
+  return await jsonpFetchWithRetry(SCRIPT_URL + '?' + qs);
 }
 
 function switchTab(tab) {
@@ -513,7 +534,7 @@ async function doRegister() {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang kiểm tra...';
   try {
-    const freshData = await jsonpFetch(SCRIPT_URL + '?action=get');
+    const freshData = await jsonpFetchWithRetry(SCRIPT_URL + '?action=get');
     applyDataToSchedule(freshData);
     renderSlots();
   } catch(err) {
@@ -541,6 +562,8 @@ async function doRegister() {
       if (result && result.error === 'full') {
         showToast('Rất tiếc, khung giờ này vừa hết chỗ. Vui lòng chọn giờ khác.');
         await loadScheduleFromSheet();
+      } else if (result && result.error === 'blocked') {
+        showToast('Không thể đặt lịch với số điện thoại này. Vui lòng liên hệ Zalo 0325 798 910 để được hỗ trợ.');
       } else {
         showToast('Hệ thống đang bận, vui lòng thử lại sau vài giây.');
       }
@@ -588,7 +611,7 @@ async function lookupBookings() {
   document.getElementById('cancel-loading').style.display = 'block';
   document.getElementById('booking-list-wrap').style.display = 'none';
   try {
-    const data = await jsonpFetch(SCRIPT_URL + '?action=get');
+    const data = await jsonpFetchWithRetry(SCRIPT_URL + '?action=get');
     document.getElementById('cancel-loading').style.display = 'none';
     const found = [];
     if (Array.isArray(data)) {
@@ -724,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isBookingTab && !document.hidden && !overlayOpen) {
       loadScheduleFromSheet(true); 
     }
-  }, 10000);
+  }, 7000);
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) loadScheduleFromSheet(true);
