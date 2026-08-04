@@ -256,6 +256,11 @@ const ALL_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:0
 const SUNDAY_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00'];
 const MAX_DEFAULT = 2;
 const MAX_NOON = 1;
+// FIX (bảo mật): schedule[day][hour] giờ là một SỐ ĐẾM (bao nhiêu chỗ
+// đã dùng), KHÔNG còn là mảng {name,phone} nữa — vì action=availability
+// (thay cho action=get cũ) chỉ trả về số lượng, không trả tên/SĐT của
+// khách khác. Mọi chỗ dùng .length trước đây được đổi sang đọc trực
+// tiếp con số này.
 let schedule = {};
 let selectedDay = null;
 let selectedHour = null;
@@ -272,7 +277,7 @@ function getNext10Days() {
     const key = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
     days.push({ date: d, key });
     schedule[key] = {};
-    getHoursForDate(d).forEach(h => { schedule[key][h] = []; });
+    getHoursForDate(d).forEach(h => { schedule[key][h] = 0; });
   }
   return days;
 }
@@ -358,16 +363,19 @@ async function jsonpFetchWithRetry(url, maxRetries = 2) {
   throw lastErr;
 }
 
-function applyDataToSchedule(data) {
+// FIX (bảo mật): trước đây hàm này ("applyDataToSchedule") nhận về mảng
+// {name,phone,day,hour,people} đầy đủ từ action=get. Giờ nó nhận về
+// mảng {day,hour,count} từ action=availability — KHÔNG còn tên/SĐT của
+// bất kỳ ai — và chỉ cần gán thẳng count vào schedule[day][hour].
+function applyAvailabilityToSchedule(data) {
   DAYS_LIST.forEach(({ date, key }) => {
-    getHoursForDate(date).forEach(h => { schedule[key][h] = []; });
+    getHoursForDate(date).forEach(h => { schedule[key][h] = 0; });
   });
   if (Array.isArray(data)) {
-    data.forEach(row => {
-      const { day, hour, people, name, phone } = row;
+    data.forEach(item => {
+      const { day, hour, count } = item;
       if (schedule[day] && schedule[day][hour] !== undefined) {
-        const count = parseInt(people) || 1;
-        for (let i = 0; i < count; i++) schedule[day][hour].push({ name, phone });
+        schedule[day][hour] = parseInt(count) || 0;
       }
     });
   }
@@ -376,8 +384,10 @@ function applyDataToSchedule(data) {
 async function loadScheduleFromSheet(silent = false) {
   if (!silent) document.getElementById('loading-indicator').style.display = 'flex';
   try {
-    const data = await jsonpFetchWithRetry(SCRIPT_URL + '?action=get');
-    applyDataToSchedule(data);
+    // FIX (bảo mật): action=availability thay cho action=get — không còn
+    // tải về tên/SĐT của khách hàng nào khi vẽ lịch trống/đầy.
+    const data = await jsonpFetchWithRetry(SCRIPT_URL + '?action=availability');
+    applyAvailabilityToSchedule(data);
   } catch(err) {
     console.warn('Không tải được lịch từ sheet:', err.message);
   }
@@ -460,7 +470,7 @@ function renderSlots() {
   }
   hours.forEach(h => {
     const maxSlot = getMaxForHour(h);
-    const used = (schedule[selectedDay][h] || []).length;
+    const used = schedule[selectedDay][h] || 0;
     const avail = maxSlot - used;
     const isFull = avail <= 0;
     const btn = document.createElement('button');
@@ -514,7 +524,7 @@ function openReview() {
   const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
   const timeLabel = wdLabel(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
   const maxSlot = getMaxForHour(selectedHour);
-  const avail = maxSlot - (schedule[selectedDay][selectedHour] || []).length;
+  const avail = maxSlot - (schedule[selectedDay][selectedHour] || 0);
   if (numPeople > avail) { showToast('Không đủ chỗ cho ' + numPeople + ' người'); return; }
   document.getElementById('review-rows').innerHTML = [
     { l:'Tên khách', v: name },
@@ -548,14 +558,17 @@ async function doRegister() {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang kiểm tra...';
   try {
-    const freshData = await jsonpFetchWithRetry(SCRIPT_URL + '?action=get');
-    applyDataToSchedule(freshData);
+    // FIX (bảo mật): action=availability thay cho action=get khi tự
+    // kiểm tra lại chỗ trống ngay trước khi gửi — không cần tên/SĐT
+    // của ai để làm việc này.
+    const freshData = await jsonpFetchWithRetry(SCRIPT_URL + '?action=availability');
+    applyAvailabilityToSchedule(freshData);
     renderSlots();
   } catch(err) {
     console.warn('Không tải được schedule mới, dùng dữ liệu cũ:', err.message);
   }
   const maxSlot = getMaxForHour(selectedHour);
-  const avail = maxSlot - (schedule[selectedDay][selectedHour] || []).length;
+  const avail = maxSlot - (schedule[selectedDay][selectedHour] || 0);
   if (numPeople > avail) {
     btn.disabled = false;
     btn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
@@ -585,8 +598,11 @@ async function doRegister() {
       }
       return;
     }
+    // FIX (bảo mật): cập nhật local schedule bằng cách CỘNG THÊM SỐ NGƯỜI
+    // vào bộ đếm, thay vì push {name,phone} vào mảng như trước — vì
+    // schedule giờ chỉ là số đếm, không còn lưu chi tiết từng khách.
     if (schedule[selectedDay] && schedule[selectedDay][selectedHour] !== undefined) {
-      for (let i = 0; i < numPeople; i++) schedule[selectedDay][selectedHour].push({ name, phone });
+      schedule[selectedDay][selectedHour] = (schedule[selectedDay][selectedHour] || 0) + numPeople;
     }
     const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
     const timeLabel = wdLabel(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
@@ -628,17 +644,14 @@ async function lookupBookings() {
   document.getElementById('cancel-loading').style.display = 'block';
   document.getElementById('booking-list-wrap').style.display = 'none';
   try {
-    const data = await jsonpFetchWithRetry(SCRIPT_URL + '?action=get');
+    // FIX (bảo mật): action=lookup thay cho action=get — server tự lọc
+    // NGAY TRONG APPS SCRIPT theo đúng SĐT truyền lên, không còn tải về
+    // (rồi lọc ở client) toàn bộ danh sách booking của mọi khách hàng
+    // như trước nữa. Server cũng đã tự lọc theo "từ hôm nay trở đi"
+    // nên không cần lọc lại row.day >= today ở đây.
+    const data = await jsonpFetchWithRetry(SCRIPT_URL + '?action=lookup&phone=' + encodeURIComponent(phone));
     document.getElementById('cancel-loading').style.display = 'none';
-    const found = [];
-    if (Array.isArray(data)) {
-      data.forEach((row, idx) => {
-        if (row.phone && normalizePhone(row.phone) === phone) {
-          const today = DAYS_LIST[0].key;
-          if (row.day >= today) found.push({ ...row, rowIndex: idx });
-        }
-      });
-    }
+    const found = Array.isArray(data) ? data : [];
     const listEl = document.getElementById('booking-list');
     document.getElementById('booking-list-wrap').style.display = 'block';
     if (found.length === 0) {
@@ -720,10 +733,12 @@ async function doCancelBooking() {
       }
       return;
     }
-    if (schedule[cancelTarget.day] && schedule[cancelTarget.day][cancelTarget.hour]) {
-      const arr = schedule[cancelTarget.day][cancelTarget.hour];
-      const idx = arr.findIndex(e => e.phone === cancelTarget.phone && e.name === cancelTarget.name);
-      if (idx !== -1) arr.splice(idx, parseInt(cancelTarget.people) || 1);
+    // FIX (bảo mật): cập nhật local schedule bằng cách TRỪ SỐ NGƯỜI khỏi
+    // bộ đếm, thay vì tìm & splice trong mảng như trước — vì schedule
+    // giờ chỉ là số đếm.
+    if (schedule[cancelTarget.day] && schedule[cancelTarget.day][cancelTarget.hour] !== undefined) {
+      const p = parseInt(cancelTarget.people) || 1;
+      schedule[cancelTarget.day][cancelTarget.hour] = Math.max(0, schedule[cancelTarget.day][cancelTarget.hour] - p);
     }
     closeCancelSheet();
     cancelTarget = null;
