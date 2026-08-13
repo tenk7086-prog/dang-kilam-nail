@@ -290,6 +290,18 @@ function getMaxForHour(hour) {
   return hour === '12:00' ? MAX_NOON : MAX_DEFAULT;
 }
 
+// FIX: server giờ chặn đặt slot đã qua giờ trong hôm nay (error:"past_slot").
+// Hàm này làm mờ đúng những khung giờ đó ngay trên UI (dùng lại style
+// .full-slot có sẵn), để người dùng không mất công điền form rồi mới bị
+// server từ chối.
+function isSlotPast(dayKey, hour) {
+  if (dayKey !== DAYS_LIST[0].key) return false; // chỉ áp dụng cho hôm nay
+  const now = new Date();
+  const [hh, mm] = hour.split(':').map(Number);
+  const slot = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm || 0);
+  return slot.getTime() <= now.getTime();
+}
+
 const DAYS_LIST = getNext10Days(); 
 
 function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
@@ -472,11 +484,12 @@ function renderSlots() {
     const maxSlot = getMaxForHour(h);
     const used = schedule[selectedDay][h] || 0;
     const avail = maxSlot - used;
-    const isFull = avail <= 0;
+    const isPast = isSlotPast(selectedDay, h);
+    const isFull = avail <= 0 || isPast;
     const btn = document.createElement('button');
     btn.className = 'slot-btn' + (isFull ? ' full-slot' : '') + (selectedHour === h && !isFull ? ' selected' : '');
     const dotClass = isFull ? 'dot-full' : avail === 1 ? 'dot-half' : 'dot-open';
-    const statusTxt = isFull ? 'Đã đủ chỗ' : avail === 1 ? 'Còn 1 chỗ' : 'Còn 2 chỗ';
+    const statusTxt = isPast ? 'Đã qua giờ' : avail <= 0 ? 'Đã đủ chỗ' : avail === 1 ? 'Còn 1 chỗ' : 'Còn 2 chỗ';
     const endH = parseInt(h) + 1;
     btn.innerHTML =
       '<div class="slot-time">' + h + ' – ' + (endH < 10 ? '0' : '') + endH + ':00</div>' +
@@ -520,6 +533,10 @@ function openReview() {
   const phone = normalizePhone(document.getElementById('inp-phone').value.trim());
   if (!name) { showToast('Vui lòng nhập tên'); return; }
   if (!phone) { showToast('Vui lòng nhập số điện thoại'); return; }
+  // FIX: kiểm tra đúng định dạng SĐT VN (10 số, bắt đầu bằng 0) ngay ở client,
+  // khớp với validate mới ở server (PHONE_REGEX) — báo lỗi ngay thay vì phải
+  // đợi round-trip lên server rồi mới biết sai.
+  if (!/^0\d{9}$/.test(phone)) { showToast('Số điện thoại không hợp lệ (cần đúng 10 số, bắt đầu bằng 0)'); return; }
   if (!selectedHour) { showToast('Vui lòng chọn khung giờ'); return; }
   const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
   const timeLabel = wdLabel(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
@@ -593,6 +610,17 @@ async function doRegister() {
         await loadScheduleFromSheet();
       } else if (result && result.error === 'blocked') {
         showToast('Không thể đặt lịch với số điện thoại này. Vui lòng liên hệ Zalo 0325 798 910 để được hỗ trợ.');
+      } else if (result && result.error === 'invalid_phone') {
+        // FIX: về lý thuyết đã bị chặn ở openReview(), nhưng vẫn xử lý phòng
+        // trường hợp validate client/server lệch nhau.
+        showToast('Số điện thoại không hợp lệ, vui lòng kiểm tra lại.');
+      } else if (result && (result.error === 'invalid_day' || result.error === 'invalid_hour' || result.error === 'past_slot')) {
+        // FIX: khung giờ vừa chọn không còn hợp lệ (đã qua giờ, hoặc ngoài
+        // khoảng 10 ngày cho đặt lịch) — tải lại lịch mới nhất để người dùng chọn lại.
+        showToast('Khung giờ này không còn hợp lệ, vui lòng chọn lại.');
+        await loadScheduleFromSheet();
+      } else if (result && result.error === 'invalid_people') {
+        showToast('Số người không hợp lệ cho khung giờ này.');
       } else {
         showToast('Hệ thống đang bận, vui lòng thử lại sau vài giây.');
       }
@@ -728,6 +756,10 @@ async function doCancelBooking() {
         showToast('Không tìm thấy lịch để hủy, có thể đã bị hủy trước đó', 'error', 'cancel-toast');
         closeCancelSheet();
         lookupBookings();
+      } else if (result && result.error === 'too_late') {
+        // FIX: server giờ enforce đúng quy tắc "hủy trước tối thiểu 4 tiếng"
+        // (trước đây chỉ là text hiển thị, không có gì chặn thật).
+        showToast('Chỉ có thể hủy lịch trước giờ hẹn tối thiểu 4 tiếng. Vui lòng liên hệ Zalo 0325 798 910 để được hỗ trợ.', 'error', 'cancel-toast');
       } else {
         showToast('Hệ thống đang bận, vui lòng thử lại sau vài giây.', 'error', 'cancel-toast');
       }
