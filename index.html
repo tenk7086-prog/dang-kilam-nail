@@ -505,6 +505,7 @@ function isSlotPast(dayKey, hour) {
   return slot.getTime() <= now.getTime();
 }
 function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
+function wdLabelFull(d) { return ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][d.getDay()]; }
 function normalizePhone(raw) {
   if (!raw) return raw;
   let p = String(raw).trim().replace(/[\s.\-]/g, '');
@@ -701,9 +702,8 @@ function renderSlots() {
     btn.className = 'slot-btn' + (isFull ? ' full-slot' : '') + (selectedHour === h && !isFull ? ' selected' : '');
     const dotClass = isFull ? 'dot-full' : avail === 1 ? 'dot-half' : 'dot-open';
     const statusTxt = isPast ? 'Đã qua giờ' : avail <= 0 ? 'Đã đủ chỗ' : avail === 1 ? 'Còn 1 chỗ' : 'Còn 2 chỗ';
-    const endH = parseInt(h) + 1;
     btn.innerHTML =
-      '<div class="slot-time">' + h + ' – ' + (endH < 10 ? '0' : '') + endH + ':00</div>' +
+      '<div class="slot-time">' + h + '</div>' +
       '<div class="slot-status"><span class="dot ' + dotClass + '"></span>' + statusTxt + '</div>';
     if (!isFull) btn.onclick = () => selectHour(h);
     // ═══ Entrance animation với stagger delay ═══
@@ -723,9 +723,8 @@ function selectHour(h) {
   shouldAnimateSlots = false;
   renderSlots();
   const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
-  const endH = parseInt(h) + 1;
   document.getElementById('selected-label').textContent =
-    wdLabel(dayObj.date) + ' · ' + h + ' – ' + (endH < 10 ? '0' : '') + endH + ':00';
+    wdLabelFull(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + h;
   document.getElementById('info-panel').classList.add('open');
   const btn2 = document.querySelector('.people-btn[data-v="2"]');
   if (h === '12:00') {
@@ -755,7 +754,7 @@ function openReview() {
   if (!/^0\d{9}$/.test(phone)) { showToast('Số điện thoại không hợp lệ (cần đúng 10 số, bắt đầu bằng 0)'); return; }
   if (!selectedHour) { showToast('Vui lòng chọn khung giờ'); return; }
   const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
-  const timeLabel = wdLabel(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
+  const timeLabel = wdLabelFull(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
   const maxSlot = getMaxForHour(selectedHour);
   const avail = maxSlot - (schedule[selectedDay][selectedHour] || 0);
   if (numPeople > avail) { showToast('Không đủ chỗ cho ' + numPeople + ' người'); return; }
@@ -830,7 +829,7 @@ async function doRegister() {
       schedule[selectedDay][selectedHour] = (schedule[selectedDay][selectedHour] || 0) + numPeople;
     }
     const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
-    const timeLabel = wdLabel(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
+    const timeLabel = wdLabelFull(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
     document.getElementById('success-rows').innerHTML = [
       { l:'Tên khách', v: name },
       { l:'Số điện thoại', v: phone },
@@ -881,9 +880,8 @@ async function lookupBookings() {
     found.forEach(row => {
       const dateParts = row.day.split('-');
       const dayDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-      const wd = wdLabel(dayDate);
-      const endH = parseInt(row.hour) + 1;
-      const timeStr = wd + ', ' + dayDate.getDate() + '/' + (dayDate.getMonth()+1) + ' · ' + row.hour + '–' + (endH < 10 ? '0' : '') + endH + ':00';
+      const wd = wdLabelFull(dayDate);
+      const timeStr = wd + ', ' + dayDate.getDate() + '/' + (dayDate.getMonth()+1) + ' · ' + row.hour;
       const item = document.createElement('div');
       item.className = 'booking-item';
       item.innerHTML =
@@ -906,9 +904,8 @@ function openCancelSheet(row) {
   cancelTarget = row;
   const dateParts = row.day.split('-');
   const dayDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-  const wd = wdLabel(dayDate);
-  const endH = parseInt(row.hour) + 1;
-  const timeStr = wd + ', ' + dayDate.getDate() + '/' + (dayDate.getMonth()+1) + ' · ' + row.hour + '–' + (endH < 10 ? '0' : '') + endH + ':00';
+  const wd = wdLabelFull(dayDate);
+  const timeStr = wd + ', ' + dayDate.getDate() + '/' + (dayDate.getMonth()+1) + ' · ' + row.hour;
   document.getElementById('cancel-review-rows').innerHTML = [
     { l:'Tên khách', v: row.name },
     { l:'Số điện thoại', v: row.phone },
