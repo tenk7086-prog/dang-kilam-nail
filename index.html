@@ -111,7 +111,6 @@
     .day-tab.today .dt::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:var(--gold);margin:3px auto 0;}
     .pill-today{display:inline-block;background:linear-gradient(135deg,var(--rose),var(--gold));color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:4px;vertical-align:middle;letter-spacing:.02em;}
     .slots-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;}
-    /* ═══ ENHANCED SLOT ANIMATIONS ═══ */
     .slot-btn{
       padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:#fff;
       cursor:pointer;text-align:left;
@@ -145,13 +144,11 @@
     .dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0;transition:transform .2s;box-shadow:0 0 0 3px currentColor22;}
     .slot-btn.selected .dot{transform:scale(1.3);}
     .dot-open{background:#2FAE84;}.dot-half{background:#E8A23C;}.dot-full{background:#D65C5C;}
-    /* ═══ SLOT ENTRANCE ANIMATION ═══ */
     @keyframes slotFadeIn{
       from{opacity:0;transform:translateY(10px) scale(0.96);}
       to{opacity:1;transform:translateY(0) scale(1);}
     }
     .slot-enter{animation:slotFadeIn .35s cubic-bezier(.22,1,.36,1) forwards;opacity:0;}
-    /* ═══ SKELETON LOADING ═══ */
     @keyframes shimmer{
       0%{background-position:-200% 0;}
       100%{background-position:200% 0;}
@@ -464,39 +461,97 @@ const ALL_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:0
 const SUNDAY_HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00'];
 const MAX_DEFAULT = 2;
 const MAX_NOON = 1;
+const NOON_HOUR = '12:00';
+
+// ═══ STATE ═══
 let schedule = {};
 let selectedDay = null;
 let selectedHour = null;
 let numPeople = 1;
 let cancelTarget = null;
-// ═══ FLAGS cho skeleton loading & entrance animation ═══
-let isInitialLoad = true;      // true cho đến khi fetch đầu tiên hoàn tất
-let shouldAnimateSlots = true;  // true khi cần chạy entrance animation
-function getNext10Days() {
+let isInitialLoad = true;      // true cho đến khi fetch đầu tiên hoàn tất → hiện skeleton
+let shouldAnimateSlots = true;  // true khi cần chạy hiệu ứng xuất hiện cho slot
+
+// ═══ DOM CACHE (script nằm cuối body nên các phần tử đã tồn tại) ═══
+const el = {
+  dayTabs: document.getElementById('day-tabs'),
+  slotsGrid: document.getElementById('slots-grid'),
+  loadingIndicator: document.getElementById('loading-indicator'),
+  infoPanel: document.getElementById('info-panel'),
+  selectedLabel: document.getElementById('selected-label'),
+  inpName: document.getElementById('inp-name'),
+  inpPhone: document.getElementById('inp-phone'),
+  toast: document.getElementById('toast'),
+  reviewRows: document.getElementById('review-rows'),
+  btnConfirm: document.getElementById('btn-confirm'),
+  overlay: document.getElementById('overlay'),
+  successRows: document.getElementById('success-rows'),
+  successCard: document.getElementById('success-card'),
+  bookingForm: document.getElementById('booking-form'),
+  bookingSection: document.getElementById('booking-section'),
+  cancelSection: document.getElementById('cancel-section'),
+  tabBook: document.getElementById('tab-book'),
+  tabCancel: document.getElementById('tab-cancel'),
+  cancelPhone: document.getElementById('cancel-phone'),
+  cancelLoading: document.getElementById('cancel-loading'),
+  bookingListWrap: document.getElementById('booking-list-wrap'),
+  bookingList: document.getElementById('booking-list'),
+  cancelToast: document.getElementById('cancel-toast'),
+  overlayCancel: document.getElementById('overlay-cancel'),
+  cancelReviewRows: document.getElementById('cancel-review-rows'),
+  btnConfirmCancel: document.getElementById('btn-confirm-cancel'),
+  peopleBtn2: document.querySelector('.people-btn[data-v="2"]')
+};
+
+// ═══ NGÀY & GIỜ ═══
+function buildDaysList(count = 10) {
   const days = [];
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < count; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     const key = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
     days.push({ date: d, key });
-    schedule[key] = {};
-    getHoursForDate(d).forEach(h => { schedule[key][h] = 0; });
   }
   return days;
+}
+function initScheduleShell() {
+  DAYS_LIST.forEach(({ date, key }) => {
+    schedule[key] = {};
+    getHoursForDate(date).forEach(h => { schedule[key][h] = 0; });
+  });
 }
 function getHoursForDate(date) {
   return date.getDay() === 0 ? SUNDAY_HOURS : ALL_HOURS;
 }
 function getMaxForHour(hour) {
-  return hour === '12:00' ? MAX_NOON : MAX_DEFAULT;
+  return hour === NOON_HOUR ? MAX_NOON : MAX_DEFAULT;
 }
-const DAYS_LIST = getNext10Days();
-// FIX: server chặn đặt slot đã qua giờ trong hôm nay (error:"past_slot").
-// Hàm này làm mờ đúng những khung giờ đó ngay trên UI (dùng lại style
-// .full-slot có sẵn), để người dùng không mất công điền form rồi mới bị
-// server từ chối.
+function getAvailability(dayKey, hour) {
+  const max = getMaxForHour(hour);
+  const used = (schedule[dayKey] && schedule[dayKey][hour]) || 0;
+  return { max, used, avail: max - used };
+}
+function parseDay(dayKey) {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
+function wdLabelFull(d) { return ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][d.getDay()]; }
+function formatDateShort(d) { return d.getDate() + '/' + (d.getMonth()+1); }
+// Dùng chung cho nhãn slot đã chọn, xem lại đơn, xác nhận và danh sách tra cứu.
+// Parse trực tiếp từ dayKey (thay vì tìm trong DAYS_LIST) nên vẫn đúng cả với
+// những lịch nằm ngoài khung 10 ngày hiển thị hiện tại — trước đây lookupBookings
+// tự parse riêng, tách trùng logic và dễ lệch với chỗ khác.
+function formatSlotLabel(dayKey, hour) {
+  const d = parseDay(dayKey);
+  return wdLabelFull(d) + ', ' + formatDateShort(d) + ' · ' + hour;
+}
+
+const DAYS_LIST = buildDaysList();
+initScheduleShell();
+
 function isSlotPast(dayKey, hour) {
   if (dayKey !== DAYS_LIST[0].key) return false; // chỉ áp dụng cho hôm nay
   const now = new Date();
@@ -504,16 +559,13 @@ function isSlotPast(dayKey, hour) {
   const slot = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm || 0);
   return slot.getTime() <= now.getTime();
 }
-function wdLabel(d) { return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]; }
-function wdLabelFull(d) { return ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][d.getDay()]; }
+
+// ═══ TIỆN ÍCH CHUNG ═══
 function normalizePhone(raw) {
   if (!raw) return raw;
   let p = String(raw).trim().replace(/[\s.\-]/g, '');
-  if (p.startsWith('+84')) {
-    p = '0' + p.slice(3);
-  } else if (p.startsWith('84') && p.length >= 10) {
-    p = '0' + p.slice(2);
-  }
+  if (p.startsWith('+84')) p = '0' + p.slice(3);
+  else if (p.startsWith('84') && p.length >= 10) p = '0' + p.slice(2);
   return p;
 }
 function generateIdempotencyKey() {
@@ -525,6 +577,36 @@ function loadField(k, def) { try { const v = localStorage.getItem('nail_' + k); 
 function clearSavedBooking() {
   ['selectedDay','selectedHour','numPeople'].forEach(k => localStorage.removeItem('nail_' + k));
 }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+// Dựng HTML cho các dòng thông tin — dùng chung cho: xem lại đơn đặt,
+// xác nhận huỷ, và thẻ đặt lịch thành công (trước đây 3 nơi tự lặp lại .map().join()).
+function buildInfoRowsHTML(rows, rowClass, labelClass, valueClass) {
+  return rows.map(r =>
+    '<div class="' + rowClass + '"><span class="' + labelClass + '">' + r.l + '</span><span class="' + valueClass + '">' + r.v + '</span></div>'
+  ).join('');
+}
+function guestInfoRows(name, phone, dayKey, hour, people) {
+  return [
+    { l:'Tên khách', v: name },
+    { l:'Số điện thoại', v: phone },
+    { l:'Ngày & giờ', v: formatSlotLabel(dayKey, hour) },
+    { l:'Số người', v: people + ' người' }
+  ];
+}
+function showToast(msg, type, toastEl) {
+  const t = toastEl || el.toast;
+  t.textContent = msg;
+  t.className = 'toast ' + (type || 'error') + ' show';
+  setTimeout(() => { t.className = 'toast'; }, 3500);
+}
+function setBtnState(btn, loading, loadingText, idleIcon, idleText) {
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> ' + loadingText
+    : '<i class="' + idleIcon + '" style="font-size:16px;"></i> ' + idleText;
+}
+
+// ═══ GỌI SERVER (JSONP) ═══
 function jsonpFetch(url) {
   return new Promise((resolve, reject) => {
     const cbName = '__nail_cb_' + Date.now() + Math.floor(Math.random() * 1000);
@@ -541,49 +623,41 @@ function jsonpFetch(url) {
     document.head.appendChild(script);
   });
 }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function jsonpFetchWithRetry(url, maxRetries = 2) {
   let lastErr;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await jsonpFetch(url);
-    } catch (err) {
+    try { return await jsonpFetch(url); }
+    catch (err) {
       lastErr = err;
-      if (attempt < maxRetries) {
-        await sleep(1000 * Math.pow(2, attempt));
-      }
+      if (attempt < maxRetries) await sleep(1000 * Math.pow(2, attempt));
     }
   }
   throw lastErr;
 }
 function applyAvailabilityToSchedule(data) {
-  DAYS_LIST.forEach(({ date, key }) => {
-    getHoursForDate(date).forEach(h => { schedule[key][h] = 0; });
-  });
+  initScheduleShell(); // reset về 0 rồi áp lại dữ liệu mới nhất từ server
   if (Array.isArray(data)) {
-    data.forEach(item => {
-      const { day, hour, count } = item;
+    data.forEach(({ day, hour, count }) => {
       if (schedule[day] && schedule[day][hour] !== undefined) {
         schedule[day][hour] = parseInt(count) || 0;
       }
     });
   }
 }
-async function loadScheduleFromSheet(silent = false) {
-  if (!silent) document.getElementById('loading-indicator').style.display = 'flex';
+// Tải lại lịch khả dụng từ server. Dùng chung cho: tải lần đầu, polling định kỳ,
+// và bước kiểm tra lại ngay trước khi xác nhận đặt — trước đây doRegister() tự
+// lặp lại y hệt đoạn fetch + applyAvailabilityToSchedule của loadScheduleFromSheet().
+async function refreshAvailability({ silent = false, rerender = true } = {}) {
+  if (!silent) el.loadingIndicator.style.display = 'flex';
   try {
     const data = await jsonpFetchWithRetry(SCRIPT_URL + '?action=availability');
     applyAvailabilityToSchedule(data);
-  } catch(err) {
+  } catch (err) {
     console.warn('Không tải được lịch từ sheet:', err.message);
   }
-  if (!silent) document.getElementById('loading-indicator').style.display = 'none';
-  // ═══ Kết thúc initial load → chuyển từ skeleton sang slot thật ═══
-  if (isInitialLoad) {
-    isInitialLoad = false;
-    shouldAnimateSlots = true;
-  }
-  renderSlots();
+  if (!silent) el.loadingIndicator.style.display = 'none';
+  if (isInitialLoad) { isInitialLoad = false; shouldAnimateSlots = true; }
+  if (rerender) renderSlots();
 }
 async function sendBooking(params) {
   const qs = new URLSearchParams({ action: 'set', ...params }).toString();
@@ -593,39 +667,42 @@ async function sendCancelBooking(params) {
   const qs = new URLSearchParams({ action: 'cancel', ...params }).toString();
   return await jsonpFetchWithRetry(SCRIPT_URL + '?' + qs);
 }
+
+// ═══ TAB ═══
 function switchTab(tab) {
   const isBook = tab === 'book';
-  document.getElementById('tab-book').classList.toggle('active', isBook);
-  document.getElementById('tab-cancel').classList.toggle('active', !isBook);
-  document.getElementById('booking-section').style.display = isBook ? 'block' : 'none';
-  document.getElementById('cancel-section').style.display = isBook ? 'none' : 'block';
+  el.tabBook.classList.toggle('active', isBook);
+  el.tabCancel.classList.toggle('active', !isBook);
+  el.bookingSection.style.display = isBook ? 'block' : 'none';
+  el.cancelSection.style.display = isBook ? 'none' : 'block';
 }
+
+// ═══ CHỌN NGÀY / GIỜ ═══
 function selectDay(key) {
   selectedDay = key;
   selectedHour = null;
-  shouldAnimateSlots = true; // animate khi đổi ngày
+  shouldAnimateSlots = true;
   saveField('selectedDay', key);
   saveField('selectedHour', '');
   hideInfoPanel();
   renderDayTabs();
   renderSlots();
-  const c = document.getElementById('day-tabs');
-  const active = c.querySelector('.day-tab.active');
+  const active = el.dayTabs.querySelector('.day-tab.active');
   if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
 function renderDayTabs() {
-  const c = document.getElementById('day-tabs');
+  const c = el.dayTabs;
   c.innerHTML = '';
   DAYS_LIST.forEach(({ date, key }, i) => {
     const btn = document.createElement('button');
     btn.className = 'day-tab' + (key === selectedDay ? ' active' : '') + (i === 0 ? ' today' : '');
     btn.innerHTML =
       '<div class="wd">' + wdLabel(date) + (i === 0 ? ' <span class="pill-today">hôm nay</span>' : '') + '</div>' +
-      '<div class="dt">' + date.getDate() + '/' + (date.getMonth()+1) + '</div>';
+      '<div class="dt">' + formatDateShort(date) + '</div>';
     btn.addEventListener('click', () => { if (c._isDragging) return; selectDay(key); });
     c.appendChild(btn);
   });
-  // Chỉ attach drag listeners 1 lần (tránh memory leak)
+  // Chỉ attach drag listeners 1 lần (tránh memory leak khi renderDayTabs gọi lại)
   if (!c._dragInitialized) {
     c._dragInitialized = true;
     let startX = 0, scrollLeft = 0;
@@ -645,57 +722,45 @@ function renderDayTabs() {
     });
   }
 }
-// ═══ SKELETON: hiện placeholder shimmer khi đang chờ dữ liệu ═══
+function sundayNoteHTML() {
+  return '<div style="grid-column:1/-1;font-size:12px;color:#EF9F27;background:#FEF9EE;border:0.5px solid #F9D77E;border-radius:8px;padding:8px 10px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">' +
+    '<i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0;"></i> Chủ nhật chỉ nhận lịch từ 09:00 – 14:00</div>';
+}
 function renderSkeletonSlots() {
-  const grid = document.getElementById('slots-grid');
+  const grid = el.slotsGrid;
   grid.innerHTML = '';
   const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
   if (!dayObj) return;
-  const hours = getHoursForDate(dayObj.date);
-  // Ghi chú Chủ nhật (vẫn hiện dù đang skeleton)
-  if (dayObj.date.getDay() === 0) {
-    const note = document.createElement('div');
-    note.style.cssText = 'grid-column:1/-1;font-size:12px;color:#EF9F27;background:#FEF9EE;border:0.5px solid #F9D77E;border-radius:8px;padding:8px 10px;margin-bottom:4px;display:flex;align-items:center;gap:6px;';
-    note.innerHTML = '<i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0;"></i> Chủ nhật chỉ nhận lịch từ 09:00 – 14:00';
-    grid.appendChild(note);
-  }
-  hours.forEach((_, i) => {
+  if (dayObj.date.getDay() === 0) grid.insertAdjacentHTML('beforeend', sundayNoteHTML());
+  getHoursForDate(dayObj.date).forEach((_, i) => {
     const sk = document.createElement('div');
     sk.className = 'skeleton-slot';
     sk.style.animationDelay = (i * 0.04) + 's';
-    sk.innerHTML =
-      '<div class="skeleton-line skeleton-line-time"></div>' +
-      '<div class="skeleton-line skeleton-line-status"></div>';
+    sk.innerHTML = '<div class="skeleton-line skeleton-line-time"></div><div class="skeleton-line skeleton-line-status"></div>';
     grid.appendChild(sk);
   });
 }
 function renderSlots() {
-  const grid = document.getElementById('slots-grid');
+  const grid = el.slotsGrid;
   if (!selectedDay) { grid.innerHTML = ''; return; }
-  // ═══ Hiện skeleton nếu đang chờ fetch đầu tiên ═══
-  if (isInitialLoad) {
-    renderSkeletonSlots();
-    return;
-  }
+  if (isInitialLoad) { renderSkeletonSlots(); return; } // hiện skeleton khi chưa có dữ liệu thật
   grid.innerHTML = '';
   const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
   const hours = getHoursForDate(dayObj.date);
   const animate = shouldAnimateSlots;
   shouldAnimateSlots = false; // reset sau khi dùng
-  if (dayObj.date.getDay() === 0) {
-    const note = document.createElement('div');
-    note.style.cssText = 'grid-column:1/-1;font-size:12px;color:#EF9F27;background:#FEF9EE;border:0.5px solid #F9D77E;border-radius:8px;padding:8px 10px;margin-bottom:4px;display:flex;align-items:center;gap:6px;';
-    note.innerHTML = '<i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0;"></i> Chủ nhật chỉ nhận lịch từ 09:00 – 14:00';
+  const isSunday = dayObj.date.getDay() === 0;
+  if (isSunday) {
+    grid.insertAdjacentHTML('beforeend', sundayNoteHTML());
     if (animate) {
+      const note = grid.lastElementChild;
       note.classList.add('slot-enter');
       note.style.animationDelay = '0s';
     }
-    grid.appendChild(note);
   }
+  const offset = isSunday ? 1 : 0;
   hours.forEach((h, idx) => {
-    const maxSlot = getMaxForHour(h);
-    const used = schedule[selectedDay][h] || 0;
-    const avail = maxSlot - used;
+    const { avail } = getAvailability(selectedDay, h);
     const isPast = isSlotPast(selectedDay, h);
     const isFull = avail <= 0 || isPast;
     const btn = document.createElement('button');
@@ -706,11 +771,8 @@ function renderSlots() {
       '<div class="slot-time">' + h + '</div>' +
       '<div class="slot-status"><span class="dot ' + dotClass + '"></span>' + statusTxt + '</div>';
     if (!isFull) btn.onclick = () => selectHour(h);
-    // ═══ Entrance animation với stagger delay ═══
     if (animate) {
       btn.classList.add('slot-enter');
-      // Offset thêm nếu có Sunday note phía trên
-      const offset = dayObj.date.getDay() === 0 ? 1 : 0;
       btn.style.animationDelay = ((idx + offset) * 0.04) + 's';
     }
     grid.appendChild(btn);
@@ -719,132 +781,108 @@ function renderSlots() {
 function selectHour(h) {
   selectedHour = h;
   saveField('selectedHour', h);
-  // Không animate khi chỉ đổi giờ trong cùng ngày (quá thường xuyên)
-  shouldAnimateSlots = false;
+  shouldAnimateSlots = false; // không animate khi chỉ đổi giờ trong cùng ngày (quá thường xuyên)
   renderSlots();
-  const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
-  document.getElementById('selected-label').textContent =
-    wdLabelFull(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + h;
-  document.getElementById('info-panel').classList.add('open');
-  const btn2 = document.querySelector('.people-btn[data-v="2"]');
-  if (h === '12:00') {
-    btn2.disabled = true;
-    btn2.style.opacity = '0.4';
-    btn2.style.cursor = 'not-allowed';
-    if (numPeople === 2) { numPeople = 1; setPeople(1); }
-  } else {
-    btn2.disabled = false;
-    btn2.style.opacity = '';
-    btn2.style.cursor = '';
-  }
+  el.selectedLabel.textContent = formatSlotLabel(selectedDay, h);
+  el.infoPanel.classList.add('open');
+  updatePeopleToggleForHour(h);
 }
-function hideInfoPanel() { document.getElementById('info-panel').classList.remove('open'); }
+// Trước đây hard-code "h === '12:00'" ở nhiều chỗ; giờ suy ra thẳng từ
+// getMaxForHour() nên nếu sau này thêm khung giờ giới hạn 1 người khác,
+// chỉ cần sửa getMaxForHour(), không phải rà lại từng chỗ gọi.
+function updatePeopleToggleForHour(hour) {
+  const btn2 = el.peopleBtn2;
+  const singleOnly = getMaxForHour(hour) === MAX_NOON;
+  btn2.disabled = singleOnly;
+  btn2.style.opacity = singleOnly ? '0.4' : '';
+  btn2.style.cursor = singleOnly ? 'not-allowed' : '';
+  if (singleOnly && numPeople === 2) { numPeople = 1; setPeople(1); }
+}
+function hideInfoPanel() { el.infoPanel.classList.remove('open'); }
 function setPeople(n) {
   numPeople = n;
   saveField('numPeople', n);
   document.querySelectorAll('.people-btn').forEach(b => b.classList.toggle('active', +b.dataset.v === n));
 }
+
+// ═══ ĐẶT LỊCH ═══
 function openReview() {
-  const name = document.getElementById('inp-name').value.trim();
-  const phone = normalizePhone(document.getElementById('inp-phone').value.trim());
+  const name = el.inpName.value.trim();
+  const phone = normalizePhone(el.inpPhone.value.trim());
   if (!name) { showToast('Vui lòng nhập tên'); return; }
   if (!phone) { showToast('Vui lòng nhập số điện thoại'); return; }
-  // FIX: kiểm tra đúng định dạng SĐT VN (10 số, bắt đầu bằng 0) ngay ở client,
-  // khớp với validate ở server — báo lỗi ngay thay vì phải đợi round-trip.
   if (!/^0\d{9}$/.test(phone)) { showToast('Số điện thoại không hợp lệ (cần đúng 10 số, bắt đầu bằng 0)'); return; }
   if (!selectedHour) { showToast('Vui lòng chọn khung giờ'); return; }
-  const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
-  const timeLabel = wdLabelFull(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
-  const maxSlot = getMaxForHour(selectedHour);
-  const avail = maxSlot - (schedule[selectedDay][selectedHour] || 0);
+  const { avail } = getAvailability(selectedDay, selectedHour);
   if (numPeople > avail) { showToast('Không đủ chỗ cho ' + numPeople + ' người'); return; }
-  document.getElementById('review-rows').innerHTML = [
-    { l:'Tên khách', v: name },
-    { l:'Số điện thoại', v: phone },
-    { l:'Ngày & giờ', v: timeLabel },
-    { l:'Số người', v: numPeople + ' người' }
-  ].map(r => '<div class="review-row"><span class="rl">' + r.l + '</span><span class="rv">' + r.v + '</span></div>').join('');
-  const btn = document.getElementById('btn-confirm');
-  btn.disabled = false;
-  btn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
+  el.reviewRows.innerHTML = buildInfoRowsHTML(
+    guestInfoRows(name, phone, selectedDay, selectedHour, numPeople), 'review-row', 'rl', 'rv'
+  );
+  el.btnConfirm.disabled = false;
+  el.btnConfirm.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
   window.__currentBookingToken = generateIdempotencyKey();
-  document.getElementById('overlay').classList.add('show');
+  el.overlay.classList.add('show');
 }
-function showToast(msg, type, id) {
-  const t = document.getElementById(id || 'toast');
-  t.textContent = msg;
-  t.className = 'toast ' + (type || 'error') + ' show';
-  setTimeout(() => { t.className = 'toast'; }, 3500);
+function closeReview() { el.overlay.classList.remove('show'); }
+function closeReviewOutside(e) { if (e.target === el.overlay) closeReview(); }
+
+// Bảng tra lỗi từ server → thông báo hiển thị, gom về một chỗ để dễ đọc và dễ
+// thêm mã lỗi mới sau này (trước đây là chuỗi if/else if dài trong doRegister).
+const BOOKING_ERROR_MESSAGES = {
+  full: 'Rất tiếc, khung giờ này vừa hết chỗ. Vui lòng chọn giờ khác.',
+  blocked: 'Không thể đặt lịch với số điện thoại này. Vui lòng liên hệ Zalo 0325 798 910 để được hỗ trợ.',
+  invalid_phone: 'Số điện thoại không hợp lệ, vui lòng kiểm tra lại.',
+  invalid_day: 'Khung giờ này không còn hợp lệ, vui lòng chọn lại.',
+  invalid_hour: 'Khung giờ này không còn hợp lệ, vui lòng chọn lại.',
+  past_slot: 'Khung giờ này không còn hợp lệ, vui lòng chọn lại.',
+  invalid_people: 'Số người không hợp lệ cho khung giờ này.'
+};
+const BOOKING_ERRORS_NEED_RELOAD = new Set(['full', 'invalid_day', 'invalid_hour', 'past_slot']);
+function handleBookingError(result) {
+  const code = result && result.error;
+  showToast(BOOKING_ERROR_MESSAGES[code] || 'Hệ thống đang bận, vui lòng thử lại sau vài giây.');
+  if (BOOKING_ERRORS_NEED_RELOAD.has(code)) refreshAvailability();
 }
-function closeReview() { document.getElementById('overlay').classList.remove('show'); }
-function closeReviewOutside(e) { if (e.target === document.getElementById('overlay')) closeReview(); }
 async function doRegister() {
-  const btn = document.getElementById('btn-confirm');
-  const name = document.getElementById('inp-name').value.trim();
-  const phone = normalizePhone(document.getElementById('inp-phone').value.trim());
+  const btn = el.btnConfirm;
+  const name = el.inpName.value.trim();
+  const phone = normalizePhone(el.inpPhone.value.trim());
   const bookingToken = window.__currentBookingToken || generateIdempotencyKey();
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang kiểm tra...';
-  try {
-    const freshData = await jsonpFetchWithRetry(SCRIPT_URL + '?action=availability');
-    applyAvailabilityToSchedule(freshData);
-    renderSlots();
-  } catch(err) {
-    console.warn('Không tải được schedule mới, dùng dữ liệu cũ:', err.message);
-  }
-  const maxSlot = getMaxForHour(selectedHour);
-  const avail = maxSlot - (schedule[selectedDay][selectedHour] || 0);
+
+  setBtnState(btn, true, 'Đang kiểm tra...');
+  await refreshAvailability({ silent: true }); // lấy dữ liệu mới nhất trước khi gửi, tránh đặt trùng chỗ đã hết
+
+  const { avail } = getAvailability(selectedDay, selectedHour);
   if (numPeople > avail) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
+    setBtnState(btn, false, '', 'ti ti-calendar-check', 'Xác nhận đặt lịch');
     closeReview();
     showToast('Rất tiếc, khung giờ này vừa hết chỗ. Vui lòng chọn giờ khác.');
     return;
   }
-  btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang gửi...';
+
+  setBtnState(btn, true, 'Đang gửi...');
   try {
     const result = await sendBooking({ name, phone, day: selectedDay, hour: selectedHour, people: numPeople, token: bookingToken });
     if (!result || result.success !== true) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
+      setBtnState(btn, false, '', 'ti ti-calendar-check', 'Xác nhận đặt lịch');
       closeReview();
-      if (result && result.error === 'full') {
-        showToast('Rất tiếc, khung giờ này vừa hết chỗ. Vui lòng chọn giờ khác.');
-        await loadScheduleFromSheet();
-      } else if (result && result.error === 'blocked') {
-        showToast('Không thể đặt lịch với số điện thoại này. Vui lòng liên hệ Zalo 0325 798 910 để được hỗ trợ.');
-      } else if (result && result.error === 'invalid_phone') {
-        showToast('Số điện thoại không hợp lệ, vui lòng kiểm tra lại.');
-      } else if (result && (result.error === 'invalid_day' || result.error === 'invalid_hour' || result.error === 'past_slot')) {
-        showToast('Khung giờ này không còn hợp lệ, vui lòng chọn lại.');
-        await loadScheduleFromSheet();
-      } else if (result && result.error === 'invalid_people') {
-        showToast('Số người không hợp lệ cho khung giờ này.');
-      } else {
-        showToast('Hệ thống đang bận, vui lòng thử lại sau vài giây.');
-      }
+      handleBookingError(result);
       return;
     }
     if (schedule[selectedDay] && schedule[selectedDay][selectedHour] !== undefined) {
-      schedule[selectedDay][selectedHour] = (schedule[selectedDay][selectedHour] || 0) + numPeople;
+      schedule[selectedDay][selectedHour] += numPeople;
     }
-    const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
-    const timeLabel = wdLabelFull(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + selectedHour;
-    document.getElementById('success-rows').innerHTML = [
-      { l:'Tên khách', v: name },
-      { l:'Số điện thoại', v: phone },
-      { l:'Ngày & giờ', v: timeLabel },
-      { l:'Số người', v: numPeople + ' người' }
-    ].map(r => '<div class="success-row"><span class="sl">' + r.l + '</span><span class="sv">' + r.v + '</span></div>').join('');
+    el.successRows.innerHTML = buildInfoRowsHTML(
+      guestInfoRows(name, phone, selectedDay, selectedHour, numPeople), 'success-row', 'sl', 'sv'
+    );
     window.__currentBookingToken = null;
     clearSavedBooking();
     closeReview();
-    document.getElementById('booking-form').style.display = 'none';
-    document.getElementById('success-card').style.display = 'block';
+    el.bookingForm.style.display = 'none';
+    el.successCard.style.display = 'block';
   } catch(err) {
     console.error('Lỗi gửi booking:', err);
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-calendar-check" style="font-size:16px;"></i> Xác nhận đặt lịch';
+    setBtnState(btn, false, '', 'ti ti-calendar-check', 'Xác nhận đặt lịch');
     showToast('Có lỗi kết nối, vui lòng thử lại');
   }
 }
@@ -855,94 +893,80 @@ function backToForm() {
   setPeople(1);
   shouldAnimateSlots = true; // animate khi quay lại
   hideInfoPanel();
-  document.getElementById('success-card').style.display = 'none';
-  document.getElementById('booking-form').style.display = 'block';
+  el.successCard.style.display = 'none';
+  el.bookingForm.style.display = 'block';
   renderDayTabs();
   renderSlots();
-  loadScheduleFromSheet();
+  refreshAvailability();
 }
+
+// ═══ TRA CỨU & HỦY LỊCH ═══
 async function lookupBookings() {
-  const phone = normalizePhone(document.getElementById('cancel-phone').value.trim());
-  if (!phone) { showToast('Vui lòng nhập số điện thoại', 'error', 'cancel-toast'); return; }
-  document.getElementById('cancel-loading').style.display = 'block';
-  document.getElementById('booking-list-wrap').style.display = 'none';
+  const phone = normalizePhone(el.cancelPhone.value.trim());
+  if (!phone) { showToast('Vui lòng nhập số điện thoại', 'error', el.cancelToast); return; }
+  el.cancelLoading.style.display = 'block';
+  el.bookingListWrap.style.display = 'none';
   try {
     const data = await jsonpFetchWithRetry(SCRIPT_URL + '?action=lookup&phone=' + encodeURIComponent(phone));
-    document.getElementById('cancel-loading').style.display = 'none';
+    el.cancelLoading.style.display = 'none';
     const found = Array.isArray(data) ? data : [];
-    const listEl = document.getElementById('booking-list');
-    document.getElementById('booking-list-wrap').style.display = 'block';
+    el.bookingListWrap.style.display = 'block';
     if (found.length === 0) {
-      listEl.innerHTML = '<div class="empty-state"><i class="ti ti-calendar-off" style="font-size:24px;display:block;margin-bottom:6px;color:#d2d2d7;"></i>Không tìm thấy lịch đặt nào còn hiệu lực</div>';
+      el.bookingList.innerHTML = '<div class="empty-state"><i class="ti ti-calendar-off" style="font-size:24px;display:block;margin-bottom:6px;color:#d2d2d7;"></i>Không tìm thấy lịch đặt nào còn hiệu lực</div>';
       return;
     }
-    listEl.innerHTML = '';
+    el.bookingList.innerHTML = '';
     found.forEach(row => {
-      const dateParts = row.day.split('-');
-      const dayDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-      const wd = wdLabelFull(dayDate);
-      const timeStr = wd + ', ' + dayDate.getDate() + '/' + (dayDate.getMonth()+1) + ' · ' + row.hour;
       const item = document.createElement('div');
       item.className = 'booking-item';
       item.innerHTML =
         '<div class="booking-item-info">' +
-        '<div class="booking-item-time">' + timeStr + '</div>' +
+        '<div class="booking-item-time">' + formatSlotLabel(row.day, row.hour) + '</div>' +
         '<div class="booking-item-meta">' + row.name + ' · ' + row.people + ' người</div>' +
         '</div>' +
-        '<button class="btn-cancel-item">' +
-        '<i class="ti ti-x" style="font-size:12px;"></i> Hủy' +
-        '</button>';
+        '<button class="btn-cancel-item"><i class="ti ti-x" style="font-size:12px;"></i> Hủy</button>';
       item.querySelector('.btn-cancel-item').onclick = () => openCancelSheet(row);
-      listEl.appendChild(item);
+      el.bookingList.appendChild(item);
     });
   } catch(err) {
-    document.getElementById('cancel-loading').style.display = 'none';
-    showToast('Không thể kết nối, vui lòng thử lại', 'error', 'cancel-toast');
+    el.cancelLoading.style.display = 'none';
+    showToast('Không thể kết nối, vui lòng thử lại', 'error', el.cancelToast);
   }
 }
 function openCancelSheet(row) {
   cancelTarget = row;
-  const dateParts = row.day.split('-');
-  const dayDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-  const wd = wdLabelFull(dayDate);
-  const timeStr = wd + ', ' + dayDate.getDate() + '/' + (dayDate.getMonth()+1) + ' · ' + row.hour;
-  document.getElementById('cancel-review-rows').innerHTML = [
-    { l:'Tên khách', v: row.name },
-    { l:'Số điện thoại', v: row.phone },
-    { l:'Ngày & giờ', v: timeStr },
-    { l:'Số người', v: row.people + ' người' }
-  ].map(r => '<div class="review-row"><span class="rl">' + r.l + '</span><span class="rv">' + r.v + '</span></div>').join('');
-  const btn = document.getElementById('btn-confirm-cancel');
-  btn.disabled = false;
-  btn.innerHTML = '<i class="ti ti-calendar-x" style="font-size:16px;"></i> Xác nhận hủy lịch';
-  document.getElementById('overlay-cancel').classList.add('show');
+  el.cancelReviewRows.innerHTML = buildInfoRowsHTML(
+    guestInfoRows(row.name, row.phone, row.day, row.hour, row.people), 'review-row', 'rl', 'rv'
+  );
+  el.btnConfirmCancel.disabled = false;
+  el.btnConfirmCancel.innerHTML = '<i class="ti ti-calendar-x" style="font-size:16px;"></i> Xác nhận hủy lịch';
+  el.overlayCancel.classList.add('show');
 }
-function closeCancelSheet() { document.getElementById('overlay-cancel').classList.remove('show'); }
-function closeCancelSheetOutside(e) { if (e.target === document.getElementById('overlay-cancel')) closeCancelSheet(); }
+function closeCancelSheet() { el.overlayCancel.classList.remove('show'); }
+function closeCancelSheetOutside(e) { if (e.target === el.overlayCancel) closeCancelSheet(); }
+function handleCancelError(result) {
+  const code = result && result.error;
+  if (code === 'not_found') {
+    showToast('Không tìm thấy lịch để hủy, có thể đã bị hủy trước đó', 'error', el.cancelToast);
+    closeCancelSheet();
+    lookupBookings();
+  } else if (code === 'too_late') {
+    showToast('Chỉ có thể hủy lịch trước giờ hẹn tối thiểu 4 tiếng. Vui lòng liên hệ Zalo 0325 798 910 để được hỗ trợ.', 'error', el.cancelToast);
+  } else {
+    showToast('Hệ thống đang bận, vui lòng thử lại sau vài giây.', 'error', el.cancelToast);
+  }
+}
 async function doCancelBooking() {
   if (!cancelTarget) return;
-  const btn = document.getElementById('btn-confirm-cancel');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:16px;animation:spin .8s linear infinite;"></i> Đang hủy...';
+  const btn = el.btnConfirmCancel;
+  setBtnState(btn, true, 'Đang hủy...');
   try {
     const result = await sendCancelBooking({
-      name: cancelTarget.name,
-      phone: cancelTarget.phone,
-      day: cancelTarget.day,
-      hour: cancelTarget.hour
+      name: cancelTarget.name, phone: cancelTarget.phone, day: cancelTarget.day, hour: cancelTarget.hour
     });
     if (!result || result.success !== true) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-calendar-x" style="font-size:16px;"></i> Xác nhận hủy lịch';
-      if (result && result.error === 'not_found') {
-        showToast('Không tìm thấy lịch để hủy, có thể đã bị hủy trước đó', 'error', 'cancel-toast');
-        closeCancelSheet();
-        lookupBookings();
-      } else if (result && result.error === 'too_late') {
-        showToast('Chỉ có thể hủy lịch trước giờ hẹn tối thiểu 4 tiếng. Vui lòng liên hệ Zalo 0325 798 910 để được hỗ trợ.', 'error', 'cancel-toast');
-      } else {
-        showToast('Hệ thống đang bận, vui lòng thử lại sau vài giây.', 'error', 'cancel-toast');
-      }
+      setBtnState(btn, false, '', 'ti ti-calendar-x', 'Xác nhận hủy lịch');
+      handleCancelError(result);
       return;
     }
     if (schedule[cancelTarget.day] && schedule[cancelTarget.day][cancelTarget.hour] !== undefined) {
@@ -951,44 +975,41 @@ async function doCancelBooking() {
     }
     closeCancelSheet();
     cancelTarget = null;
-    showToast('Hủy lịch thành công', 'success', 'cancel-toast');
+    showToast('Hủy lịch thành công', 'success', el.cancelToast);
     setTimeout(() => lookupBookings(), 500);
   } catch(err) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-calendar-x" style="font-size:16px;"></i> Xác nhận hủy lịch';
-    showToast('Có lỗi kết nối, vui lòng thử lại', 'error', 'cancel-toast');
+    setBtnState(btn, false, '', 'ti ti-calendar-x', 'Xác nhận hủy lịch');
+    showToast('Có lỗi kết nối, vui lòng thử lại', 'error', el.cancelToast);
   }
 }
+
+// ═══ KHỞI TẠO ═══
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('cancel-phone').addEventListener('keydown', e => {
-    if (e.key === 'Enter') lookupBookings();
-  });
+  el.cancelPhone.addEventListener('keydown', e => { if (e.key === 'Enter') lookupBookings(); });
   selectedDay = DAYS_LIST[0].key;
   selectedHour = null;
   numPeople = 1;
   setPeople(1);
   try {
-    document.getElementById('inp-name').value = loadField('name', '');
-    document.getElementById('inp-phone').value = loadField('phone', '');
+    el.inpName.value = loadField('name', '');
+    el.inpPhone.value = loadField('phone', '');
   } catch(e) {}
-  document.getElementById('inp-name').addEventListener('input', e => saveField('name', e.target.value));
-  document.getElementById('inp-phone').addEventListener('input', e => saveField('phone', e.target.value));
-  document.getElementById('inp-phone').addEventListener('blur', e => {
+  el.inpName.addEventListener('input', e => saveField('name', e.target.value));
+  el.inpPhone.addEventListener('input', e => saveField('phone', e.target.value));
+  el.inpPhone.addEventListener('blur', e => {
     e.target.value = normalizePhone(e.target.value);
     saveField('phone', e.target.value);
   });
   renderDayTabs();
-  renderSlots(); // ← sẽ hiện skeleton vì isInitialLoad = true
-  loadScheduleFromSheet(); // ← khi xong sẽ set isInitialLoad = false và render slot thật
+  renderSlots(); // sẽ hiện skeleton vì isInitialLoad = true
+  refreshAvailability(); // khi xong sẽ set isInitialLoad = false và render slot thật
   setInterval(() => {
-    const isBookingTab = document.getElementById('booking-section').style.display !== 'none';
-    const overlayOpen = document.getElementById('overlay').classList.contains('show');
-    if (isBookingTab && !document.hidden && !overlayOpen) {
-      loadScheduleFromSheet(true);
-    }
+    const isBookingTab = el.bookingSection.style.display !== 'none';
+    const overlayOpen = el.overlay.classList.contains('show');
+    if (isBookingTab && !document.hidden && !overlayOpen) refreshAvailability({ silent: true });
   }, 7000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) loadScheduleFromSheet(true);
+    if (!document.hidden) refreshAvailability({ silent: true });
   });
 });
 </script>
