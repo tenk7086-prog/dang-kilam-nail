@@ -39,6 +39,45 @@
       -webkit-font-smoothing:antialiased;
     }
     .wrap{padding:0.5rem 0 2rem;max-width:480px;margin:0 auto;width:100%;}
+
+    /* ═══ DESKTOP: tách .wrap khỏi nền trống, thêm điểm nhấn thị giác ═══
+       Chỉ áp dụng từ 768px trở lên — không đổi max-width nên grid 2 cột,
+       form, v.v. bên trong .wrap giữ nguyên y hệt trên mọi kích thước. */
+    @media (min-width:768px){
+      body{
+        background:
+          radial-gradient(circle, rgba(212,83,126,0.14) 1.6px, transparent 1.6px),
+          radial-gradient(circle at 12% 0%, rgba(212,83,126,0.10), transparent 42%),
+          radial-gradient(circle at 100% 12%, rgba(201,161,90,0.12), transparent 40%),
+          radial-gradient(circle at 0% 100%, rgba(212,83,126,0.09), transparent 46%),
+          radial-gradient(circle at 100% 100%, rgba(201,161,90,0.10), transparent 46%),
+          var(--cream);
+        background-size:28px 28px, auto, auto, auto, auto, auto;
+        padding:2.6rem 1rem;
+      }
+      .wrap{
+        max-width:620px;
+        background:#fff;
+        border-radius:28px;
+        padding:1.9rem 1.9rem 2.4rem;
+        box-shadow:0 34px 74px rgba(153,53,86,0.16), 0 10px 26px rgba(153,53,86,0.08);
+        border:1px solid var(--line);
+        position:relative;
+      }
+      .wrap::before{
+        content:'';
+        position:absolute;
+        inset:-1px;
+        border-radius:28px;
+        padding:1px;
+        background:linear-gradient(135deg, rgba(212,83,126,0.28), rgba(201,161,90,0.28));
+        -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite:xor;
+        mask-composite:exclude;
+        pointer-events:none;
+      }
+    }
+
     .page-title{
       font-family:'Playfair Display',serif;
       font-size:25px;font-weight:600;font-style:italic;
@@ -726,6 +765,16 @@ function selectHour(h) {
   document.getElementById('selected-label').textContent =
     wdLabelFull(dayObj.date) + ', ' + dayObj.date.getDate() + '/' + (dayObj.date.getMonth()+1) + ' · ' + h;
   document.getElementById('info-panel').classList.add('open');
+
+  // ═══ Tự cuộn đến form thông tin khách sau khi chọn giờ ═══
+  // Delay nhỏ để tránh cuộn bị giật do info-panel đang trong lúc
+  // transition max-height mở ra. Chỉ chạy khi chọn giờ (selectHour),
+  // không chạy khi đổi ngày (selectDay không gọi đoạn này).
+  setTimeout(() => {
+    const label = document.querySelector('.selected-slot-label');
+    if (label) label.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 130);
+
   const btn2 = document.querySelector('.people-btn[data-v="2"]');
   if (h === '12:00') {
     btn2.disabled = true;
