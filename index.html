@@ -692,7 +692,7 @@ function renderSkeletonSlots() {
   const dayObj = DAYS_LIST.find(d => d.key === selectedDay);
   if (!dayObj) return;
   const hours = getHoursForDate(dayObj.date);
-  Ghi chú Chủ nhật (vẫn hiện dù đang skeleton)
+  // Ghi chú Chủ nhật (vẫn hiện dù đang skeleton)
   if (dayObj.date.getDay() === 0) {
     const note = document.createElement('div');
     note.style.cssText = 'grid-column:1/-1;font-size:12px;color:#EF9F27;background:#FEF9EE;border:0.5px solid #F9D77E;border-radius:8px;padding:8px 10px;margin-bottom:4px;display:flex;align-items:center;gap:6px;';
