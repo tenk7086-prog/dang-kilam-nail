@@ -64,3 +64,25 @@ h1 em,h2 em{
   font-weight:500;
   letter-spacing:-.02em;
 }
+
+/* Bảng giá chính thức Hanhnail: HTML để giá luôn đọc được khi mạng chậm. */
+.nail-menu{display:grid;grid-template-columns:minmax(0,1fr);background:var(--paper);border:1px solid #b78b4c55;border-radius:1.25rem;overflow:hidden;box-shadow:var(--shadow)}
+.menu-group{min-width:0;padding:clamp(1.25rem,3vw,2.5rem)}
+.menu-group+.menu-group{border-top:1px solid var(--line)}
+.menu-group-head{display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem}
+.menu-number{width:2.75rem;height:2.75rem;display:grid;place-items:center;border:1px solid #b78b4c66;border-radius:50%;color:var(--wine);font-size:.75rem;flex-shrink:0}
+.menu-kicker{font-size:.625rem;letter-spacing:.14em;color:var(--muted);margin-bottom:.3rem}
+.menu-group-head h3{font-family:'Be Vietnam Pro',sans-serif;font-size:clamp(1.25rem,2vw,1.65rem);line-height:1.5;color:var(--wine)}
+.menu-list{margin:0}
+.menu-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.5rem 1rem;padding:1.125rem 0;border-bottom:1px dashed var(--line)}
+.menu-row:last-child{border-bottom:0}
+.menu-row dt{flex:1 1 8rem;font-size:.875rem;line-height:1.75;overflow-wrap:anywhere}
+.menu-row dt small{display:block;color:var(--muted);font-size:.75rem;margin-top:.15rem}
+.menu-row dd{margin:0 0 0 auto;color:var(--wine);font-size:.9375rem;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.menu-row dd span{font-size:.7rem;margin-left:.15rem;font-weight:400}
+.menu-footer{display:flex;flex-direction:column;gap:1.25rem;padding:1.5rem;background:var(--cream);border-top:1px solid var(--line)}
+.menu-footer p{font-size:.875rem;color:var(--wine)}
+.menu-footer small{color:var(--muted);font-size:.75rem}
+.menu-footer a{display:flex;justify-content:center;align-items:center;gap:1rem;background:var(--wine);color:var(--paper);border-radius:100px;padding:.95rem 1.4rem;font-size:.8125rem;transition:background .2s}
+.menu-footer a:hover{background:var(--wine-dark)}
+@media(min-width:768px){.nail-menu{grid-template-columns:repeat(2,minmax(0,1fr))}.menu-group+.menu-group{border-top:0;border-left:1px solid var(--line)}.menu-footer{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center;padding:1.5rem 2.5rem}.menu-footer a{flex-shrink:0}}

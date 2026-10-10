@@ -63,8 +63,6 @@ function summary(){const current=state.data?.availability.find(x=>x.starts_at===
 }
 function paintSettings(){const {settings,hours,services}=state.data;document.querySelectorAll('[data-address]').forEach(x=>x.textContent=settings.address);
  $('announcement').textContent=settings.announcement;$('announcement').hidden=!settings.announcement;
- $('price-grid').replaceChildren(...services.map((s,i)=>{const a=el('article','price-card');a.append(el('p','price-label',s.is_sample?'GIÁ THAM KHẢO · DỮ LIỆU MẪU':'DỊCH VỤ TẠI TIỆM'),el('h3','',s.name),el('p','',s.description));const price=el('strong','price-amount',new Intl.NumberFormat('vi-VN').format(s.price_vnd));price.append(el('small','','đ'));a.append(price);const link=el('a','text-link','Chọn lịch hẹn');link.href='#dat-lich';a.append(link);return a;}));
- $('price-grid').setAttribute('aria-busy','false');
  $('opening-hours').replaceChildren(...[1,2,3,4,5,6,0].map(day=>{const h=hours.find(x=>x.weekday===day);const p=el('p');p.append(el('span','',day===0?'Chủ nhật':`Thứ ${day+1}`),el('strong','',!h||h.capacity===0?'Nghỉ':`${h.opens.slice(0,5)} – ${h.closes.slice(0,5)}`));return p;}));
  $('hours-note').hidden=state.backend.live;const phone=normalizePhone(settings.contact_phone??'');
  if(phone){const call=el('a','button primary','Gọi tiệm');call.href=`tel:${phone}`;const zalo=el('a','button secondary','Nhắn Zalo');zalo.href=`https://zalo.me/${phone}`;zalo.target='_blank';zalo.rel='noopener noreferrer';$('contact-buttons').replaceChildren(call,zalo);$('contact-note').textContent=phone;document.querySelector('[data-contact-mini]').replaceChildren(Object.assign(el('a','',`Zalo · ${phone}`),{href:zalo.href,target:'_blank',rel:'noopener noreferrer'}));}
@@ -125,7 +123,7 @@ function scheduleConfig(){clearTimeout(configTimer);if(document.hidden||!state.b
 async function init(){paintDays();try{const res=await fetch('./site-config.json',{cache:'no-store',signal:AbortSignal.timeout(5000)});if(!res.ok)throw new ApiError('configuration_invalid');const config=await res.json();state.backend=makeBackend(config);
  if(state.backend.live){const link=document.createElement('link');link.rel='preconnect';link.href=config.supabaseUrl;document.head.append(link);}else{$('mode-notice').hidden=false;$('mode-notice').textContent='Bản xem trước — lịch và giá đang dùng dữ liệu mẫu. Chưa nhận đặt lịch thật.';}
  await refresh();connect();runClock();scheduleConfig();
- }catch(err){$('mode-notice').hidden=false;$('mode-notice').textContent=messages.configuration_invalid;$('slots').replaceChildren(el('p','empty','Chưa thể tải lịch.'));$('slots').setAttribute('aria-busy','false');$('sync-status').textContent='Chưa kết nối';const data=(await import('./backend.js')).demoData();state.data=data;state.backend=null;$('price-grid').replaceChildren(el('p','','Chưa tải được bảng giá.'));$('price-grid').setAttribute('aria-busy','false');summary();}}
+ }catch(err){$('mode-notice').hidden=false;$('mode-notice').textContent=messages.configuration_invalid;$('slots').replaceChildren(el('p','empty','Chưa thể tải lịch.'));$('slots').setAttribute('aria-busy','false');$('sync-status').textContent='Chưa kết nối';const data=(await import('./backend.js')).demoData();state.data=data;state.backend=null;summary();}}
 void init();
 
 // Cuộn sau khi người dùng chọn giờ, chỉ ở bố cục điện thoại.
