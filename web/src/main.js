@@ -49,7 +49,7 @@ function paintSlots(){if(!state.data)return;const active=document.activeElement?
  const nodes=list.map(row=>{const passed=Date.parse(row.starts_at)<=Date.now();const full=row.remaining<state.people;
  const button=el('button','slot');button.type='button';button.dataset.slot=row.starts_at;button.disabled=passed||full||state.busy||state.uncertain||state.loading;button.setAttribute('aria-pressed',String(state.slot===row.starts_at));
  const label=passed?'Đã qua giờ':row.remaining===0?'Đã đủ chỗ':full?`Còn ${row.remaining} chỗ · không đủ nhóm`:`Còn ${row.remaining} chỗ`;
- button.append(el('strong','',row.local_time.slice(0,5)),el('small','',label));button.setAttribute('aria-label',`${row.local_time.slice(0,5)}, ${label}`);button.addEventListener('click',()=>{state.slot=row.starts_at;showError('booking-error','');paintSlots();summary();});return button;});
+ button.append(el('strong','',row.local_time.slice(0,5)),el('small','',label));button.setAttribute('aria-label',`${row.local_time.slice(0,5)}, ${label}`);button.addEventListener('click',()=>{state.slot=row.starts_at;showError('booking-error','');paintSlots();summary();scrollToCustomerForm();});return button;});
  if(!nodes.length)nodes.push(el('p','empty','Tiệm không nhận lịch trong ngày này. Hãy chọn ngày khác.'));
  $('slots').replaceChildren(...nodes);$('slots').setAttribute('aria-busy',String(state.loading));
  if(active)[...$('slots').querySelectorAll('button')].find(x=>x.dataset.slot===active)?.focus({preventScroll:true});
@@ -127,3 +127,14 @@ async function init(){paintDays();try{const res=await fetch('./site-config.json'
  await refresh();connect();runClock();scheduleConfig();
  }catch(err){$('mode-notice').hidden=false;$('mode-notice').textContent=messages.configuration_invalid;$('slots').replaceChildren(el('p','empty','Chưa thể tải lịch.'));$('slots').setAttribute('aria-busy','false');$('sync-status').textContent='Chưa kết nối';const data=(await import('./backend.js')).demoData();state.data=data;state.backend=null;$('price-grid').replaceChildren(el('p','','Chưa tải được bảng giá.'));$('price-grid').setAttribute('aria-busy','false');summary();}}
 void init();
+
+// Cuộn sau khi người dùng chọn giờ, chỉ ở bố cục điện thoại.
+function scrollToCustomerForm(){
+ if(!window.matchMedia('(max-width: 767px)').matches)return;
+ requestAnimationFrame(()=>{
+  const form=$('booking-form');
+  const header=$('site-header');
+  const top=Math.max(0,window.scrollY+form.getBoundingClientRect().top-(header?.getBoundingClientRect().height??0)-16);
+  window.scrollTo({top,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+ });
+}
