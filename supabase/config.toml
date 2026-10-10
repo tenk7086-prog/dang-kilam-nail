@@ -1,0 +1,9 @@
+project_id = "dang-kilam-nail"
+
+# Khách không cần tài khoản Auth. Worker tự kiểm tra bearer secret riêng.
+# Tắt gateway JWT ở hai function này; không tắt kiểm tra JWT cho API admin tương lai.
+[functions.customer-api]
+verify_jwt = false
+
+[functions.calendar-worker]
+verify_jwt = false

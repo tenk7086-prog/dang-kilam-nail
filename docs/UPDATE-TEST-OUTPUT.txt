@@ -1,0 +1,216 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> dang-kilam-nail@0.3.0 test
+> npm run test:db && npm run test:edge
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> dang-kilam-nail@0.3.0 test:db
+> node tools/test-db.mjs
+
+OK: supabase/migrations/202609300001_core.sql
+OK: supabase/seed.sql
+OK: supabase/migrations/202610010002_calendar_worker.sql
+OK: supabase/migrations/202610090003_phone_lookup.sql
+OK: supabase/migrations/202610090005_owner_future_booking.sql
+PASS: 10 lượt phone không có lịch được ghi nhận
+PASS: 12h không nhận 2 người ở server
+PASS: 12h tối đa 1 người
+PASS: 30 lượt trên IP được ghi nhận
+PASS: Admin không ghi đè dữ liệu đã đổi
+PASS: Anon không bỏ qua Edge để huỷ RPC
+PASS: Anon không bỏ qua Edge để tra cứu RPC
+PASS: Anon không bỏ qua Edge để đặt RPC
+PASS: Anon không chạy maintenance
+PASS: Anon không sửa sức chứa
+PASS: Anon không đọc được đơn
+PASS: Anon đọc được số chỗ
+PASS: Blacklist được kiểm tra ở server
+PASS: Bất biến: reserved bằng tổng người của đơn còn hiệu lực
+PASS: Cho phép huỷ khi còn đúng 4 giờ
+PASS: Chuẩn hoá +84
+PASS: Chuẩn hoá 84
+PASS: Chặn phone null
+PASS: Chặn đuôi 8 chữ số lặp
+PASS: Chặn đầu số sai
+PASS: Chỉ cần đúng phone để tra cứu
+PASS: Chủ nhật không nhận từ 13h
+PASS: Chủ tiệm huỷ lặp không trả chỗ lần hai
+PASS: Chủ tiệm xem ngày qua RPC
+PASS: Chủ tiệm đọc được đơn qua RLS
+PASS: Cùng key khác payload bị từ chối
+PASS: Dời cập nhật phiên bản outbox
+PASS: Dời trả chỗ cũ và giữ chỗ mới
+PASS: Ghi outbox cùng đơn
+PASS: Giữ số 0
+PASS: Huỷ lặp an toàn
+PASS: Huỷ lặp chỉ trả chỗ một lần
+PASS: Huỷ vẫn giữ tác vụ xoá event
+PASS: Hết chỗ bị chặn ở server
+PASS: ID event ổn định; đơn mới không cần secret
+PASS: Khách huỷ sát giờ với CANCEL_MIN_HOURS=0
+PASS: Khách huỷ trước giờ hẹn
+PASS: Không giảm sức chứa dưới số đã đặt
+PASS: Không trả lịch của phone khác
+PASS: Không tự nâng thành chủ tiệm
+PASS: Không vượt 10 ngày
+PASS: Không vượt sức chứa
+PASS: Không xoá cứng đơn làm mất tác vụ xoá Calendar
+PASS: Không âm thầm xoá chữ cái
+PASS: Không đóng ngày có đơn chưa xử lý
+PASS: Không đặt quá khứ
+PASS: Lookup trả danh sách lịch của phone
+PASS: Lượt thứ 11 bị giới hạn
+PASS: Mọi đơn luôn có tác vụ đúng phiên bản
+PASS: Payload Realtime không chứa PII
+PASS: RPC chặn số lặp
+PASS: Realtime chỉ publish availability
+PASS: Retry không nhân đôi đơn
+PASS: Retry trả đúng đơn cũ
+PASS: Sai giờ không huỷ lịch khác
+PASS: Sinh 10 ngày x 24 giờ
+PASS: Trừ đúng 1 chỗ
+PASS: Tạo lịch trong giới hạn 1
+PASS: Tạo lịch trong giới hạn 2
+PASS: Tạo lịch trong giới hạn 3
+PASS: Tạo đơn sát giờ để kiểm tra
+PASS: Tạo đơn ở mốc đúng 4 giờ
+PASS: User khác không đọc được audit
+PASS: User khác không đọc được outbox
+PASS: User khác không đọc được đơn đã tồn tại
+PASS: User thường không dùng admin RPC
+PASS: User thường không sửa blacklist
+PASS: User thường không thấy đơn qua RLS
+PASS: Đặt chỗ cuối
+PASS: Đặt thành công qua service_role
+PASS: Đổi IP không vượt giới hạn 3 lịch
+PASS: Đổi phone không vượt giới hạn IP
+
+72/72 kiểm tra đạt.
+OK: supabase/tests/01_core.sql
+PASS: ACK bản huỷ
+PASS: ACK giả bị từ chối
+PASS: ACK sai version bị từ chối
+PASS: Anon không ACK job
+PASS: Anon không claim job
+PASS: Anon không xem hàng đợi
+PASS: Bản huỷ vẫn pending
+PASS: Ghi log retry
+PASS: Huỷ trong lúc worker chạy
+PASS: Hàng đợi rỗng trả null
+PASS: Không chạy lại ngay sau thành công
+PASS: Không claim lại khi lease còn hiệu lực
+PASS: Không ghi chuỗi lỗi có PII
+PASS: Không retry trước hạn
+PASS: Kết quả phiên bản cũ chỉ ACK bản cũ
+PASS: Lease hết hạn không ACK
+PASS: Lease đúng hợp lệ
+PASS: Lưu thất bại
+PASS: Lỗi giữ pending và backoff
+PASS: Phone limit hoạt động khi không có trusted IP
+PASS: Retry cấp token mới
+PASS: Service claim đúng đơn
+PASS: Snapshot chứa version
+PASS: Thành công xoá lỗi và lên lịch đối soát
+PASS: Thống kê lỗi không có PII
+PASS: Token giả bị từ chối
+PASS: User không đọc lease
+PASS: User đăng nhập không claim job
+PASS: Version cũ không được phép tiếp tục ghi Google
+PASS: Worker chết được nhận lại tác vụ
+PASS: Worker cũ không ACK lease mới
+PASS: Worker kế tiếp nhận trạng thái huỷ
+PASS: Đối soát cả đơn đã huỷ để tìm event xuất hiện muộn
+
+33/33 kiểm tra đạt.
+OK: supabase/tests/02_calendar.sql
+PASS: CANCEL_MIN_HOURS mặc định 0
+PASS: RPC lookup cũ đã xoá
+PASS: RPC book cũ đã xoá
+PASS: RPC cancel cũ đã xoá
+PASS: Lookup chuẩn hoá phone và trả đủ ba lịch
+PASS: Không trả lịch của số khác
+PASS: Mọi phần tử thuộc đúng phone
+PASS: Danh sách tăng dần theo giờ
+PASS: Huỷ riêng lịch ở giữa
+PASS: Lookup loại lịch đã huỷ, giữ hai lịch khác
+PASS: Huỷ lặp là no-op an toàn
+PASS: Đặt lại giờ đã huỷ
+PASS: Huỷ đúng đơn active khi có lịch sử cùng giờ
+PASS: Một giây trước lịch vẫn được huỷ
+PASS: Đổi một cấu hình thành 4 giờ có hiệu lực ở server
+PASS: Đúng giờ bắt đầu không được huỷ
+PASS: Lookup không trả lịch đã bắt đầu
+PASS: can_cancel và customer_cancel cùng chặn giờ bắt đầu
+
+18/18 kiểm tra đạt.
+OK: supabase/tests/03_phone_lookup.sql
+PASS: Chủ tiệm tạo lịch xa hơn 10 ngày
+PASS: Lịch xa được xác nhận
+PASS: Lịch xa lưu đúng ngày giờ
+PASS: Tạo slot xa và trừ chỗ đúng
+PASS: Retry lịch xa không tạo trùng
+PASS: Khách vẫn bị giới hạn 10 ngày
+PASS: Chủ tiệm không tạo ngoài giờ mở cửa
+PASS: Chủ tiệm dời lịch xa
+PASS: Dời lịch xa cập nhật sức chứa
+PASS: Lịch xa dời vẫn có outbox Calendar
+PASS: Lịch xa không vượt sức chứa
+PASS: Lịch xa áp dụng giới hạn 12 giờ
+PASS: Giới hạn 730 ngày ở server
+PASS: Không đóng ngày xa đang có khách
+PASS: Tài khoản thường không tạo lịch xa
+PASS: Anon không gọi RPC tạo lịch
+PASS: Khách huỷ được lịch xa do chủ tạo
+PASS: Huỷ lịch xa xếp hàng xoá Calendar
+
+18/18 kiểm tra đạt.
+OK: supabase/tests/04_owner_future_booking.sql
+PostgreSQL 18.3 (PGlite 0.5.8) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit
+Chưa kiểm tra: Supabase HTTP/Auth thật, WebSocket Realtime, nhiều kết nối, Calendar, k6.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> dang-kilam-nail@0.3.0 test:edge
+> node --test tests/edge.test.mjs
+
+✔ Chuẩn hoá frontend/server tương ứng regex và số lặp (1.141603ms)
+✔ CORS từ chối origin ngoài danh sách trước khi gọi DB (3.832065ms)
+✔ Preflight không gọi database (0.538459ms)
+✔ GET không được dùng để truyền số điện thoại trong URL (0.394174ms)
+✔ Chặn body lớn cả khi thiếu Content-Length (3.699969ms)
+✔ Chặn JSON không phải object (0.847898ms)
+✔ Content-Type phải là JSON (0.526641ms)
+✔ Chặn nhóm 0 người và name điều khiển (1.336903ms)
+✔ Chặn thời gian không có timezone và ngày huỷ không tồn tại (1.916793ms)
+✔ Không cho client chọn RPC, role hoặc IP hash (2.164411ms)
+{"component":"customer-api","code":"internal_error"}
+✔ Không báo thành công trước xác nhận database (6.278654ms)
+✔ Retry giữ nguyên idempotency (1.587185ms)
+✔ Tra cứu sai thông tin trả not_found, không hỏi tất cả lịch (0.341807ms)
+✔ Rate limit trả 429 và Retry-After (0.626389ms)
+✔ Không trả raw error có phone hoặc token (0.697715ms)
+✔ Mặc định bỏ qua header IP giả; chế độ trusted bắt buộc đủ cấu hình (5.777541ms)
+✔ RPC HTTP lỗi không truyền error body (0.706678ms)
+✔ Worker từ chối token sai trước khi claim (2.489062ms)
+✔ Google create dùng đúng event ID, title và lịch riêng tư (0.353124ms)
+✔ Google insert 409 được đọc lại và PATCH, không tạo ID mới (0.193126ms)
+✔ Huỷ event không có sẵn là thành công, không tạo mới (0.108831ms)
+✔ Không cập nhật hoặc xoá event thiếu dấu nhận diện của đơn (0.299364ms)
+✔ Lease đổi sau GET thì không gửi lệnh ghi Google (0.146537ms)
+✔ Event chủ tiệm xoá tay được báo lỗi cần khôi phục, không tạo hàng loạt ID (0.104445ms)
+✔ Google HTTP 429 không ACK thành công (0.362077ms)
+✔ OAuth ký JWT RS256 hợp lệ và cache một access token cho các lời gọi song song (60.219253ms)
+{"component":"calendar-worker","code":"google_http_503"}
+✔ Luồng tích hợp: lưu đơn → Google lỗi → retry → dời → huỷ → xoá event muộn (1659.236209ms)
+✔ Supabase secret key mới dùng apikey, không giả thành Bearer JWT (0.66046ms)
+✔ Lookup phone-only trả mảng; cancel chỉ truyền phone/ngày/giờ (1.036086ms)
+✔ Nâng cấp giữ đơn cũ/event_id, retry idempotency và huỷ không cần secret (1270.913065ms)
+✔ Frontend xác thực mảng lookup và không nhận lịch thuộc phone khác (2.434591ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3174.848353

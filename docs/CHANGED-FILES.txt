@@ -1,0 +1,87 @@
+ADD docs/UPDATE-20261009.md
+ADD supabase/migrations/202610090003_phone_lookup.sql
+ADD supabase/tests/03_phone_lookup.sql
+ADD web/src/gallery-images.json
+ADD web/src/gallery.js
+DELETE web/public/images/nude-1200.webp
+DELETE web/public/images/nude-480.webp
+DELETE web/public/images/nude-800.webp
+DELETE web/public/images/og.jpg
+DELETE web/public/images/pearl-1200.webp
+DELETE web/public/images/pearl-480.webp
+DELETE web/public/images/pearl-800.webp
+DELETE web/public/images/wine-1200.webp
+DELETE web/public/images/wine-480.webp
+DELETE web/public/images/wine-800.webp
+EDIT README.md
+EDIT docs/API_CONTRACT.md
+EDIT docs/DATABASE.md
+EDIT docs/GD1-HUONG-DAN.md
+EDIT docs/GD2-HUONG-DAN.md
+EDIT docs/GD2-TEST-REPORT.md
+EDIT docs/GD3-HUONG-DAN.md
+EDIT docs/GD3-TEST-REPORT.md
+EDIT docs/TEST_REPORT.md
+EDIT supabase/bootstrap_owner.sql
+EDIT supabase/functions/_shared/customer.js
+EDIT supabase/functions/customer-api/index.ts
+EDIT supabase/tests/01_core.sql
+EDIT supabase/tests/02_calendar.sql
+EDIT tests/browser/gd3-gd4.spec.js
+EDIT tests/edge.test.mjs
+EDIT tests/k6/customer-api.js
+EDIT tools/prepare-web-images.mjs
+EDIT tools/test-db.mjs
+EDIT vite.config.js
+EDIT web/index.html
+EDIT web/public/site-config.json
+EDIT web/src/backend.js
+EDIT web/src/main.js
+EDIT web/src/style.css
+
+Ảnh thật bổ sung trong lượt tiếp theo:
+ADD web/public/images/mau-2-480.webp
+ADD web/public/images/mau-2-800.webp
+ADD web/public/images/mau-2-1200.webp
+ADD web/public/images/mau-4-480.webp
+ADD web/public/images/mau-4-800.webp
+ADD web/public/images/mau-4-1200.webp
+EDIT tools/prepare-web-images.mjs (cập nhật ảnh từng đợt)
+EDIT web/src/main.js (lightbox bỏ qua ảnh chưa có)
+
+Hoàn tất bốn ảnh:
+ADD web/public/images/mau-1-480.webp
+ADD web/public/images/mau-1-800.webp
+ADD web/public/images/mau-1-1200.webp
+ADD web/public/images/mau-3-480.webp
+ADD web/public/images/mau-3-800.webp
+ADD web/public/images/mau-3-1200.webp
+REPLACE web/public/images/og.jpg
+EDIT web/index.html (hero ảnh thật, tải ưu tiên từ HTML)
+
+Brand Hanhnail:
+EDIT web/index.html
+EDIT web/admin.html
+EDIT web/src/backend.js
+EDIT web/src/admin.js
+EDIT vite.config.js
+EDIT supabase/seed.sql
+EDIT tests/browser/gd3-gd4.spec.js
+ADD supabase/migrations/202610090004_brand_hanhnail.sql
+
+Fix hiển thị tiếng Việt:
+EDIT web/src/style.css (tiêu đề dùng Be Vietnam Pro để tránh giãn chữ có dấu)
+
+Lịch thủ công cho chủ tiệm:
+ADD supabase/migrations/202610090005_owner_future_booking.sql
+ADD supabase/tests/04_owner_future_booking.sql
+EDIT tools/test-db.mjs
+EDIT web/admin.html
+EDIT web/src/admin.js
+EDIT web/src/admin.css
+EDIT docs/GD4-HUONG-DAN.md
+
+ADD docs/OWNER-FUTURE-BOOKING.md
+EDIT docs/API_CONTRACT.md
+EDIT docs/UPDATE-20261009.md
+EDIT docs/UPDATE-TEST-OUTPUT.txt

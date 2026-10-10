@@ -1,0 +1,84 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> dang-kilam-nail@0.1.0 test:db
+> node tools/test-db.mjs
+
+OK: supabase/migrations/202609300001_core.sql
+OK: supabase/seed.sql
+PASS: 10 lượt sai mã được ghi nhận
+PASS: 12h không nhận 2 người ở server
+PASS: 12h tối đa 1 người
+PASS: 30 lượt trên IP được ghi nhận
+PASS: Admin không ghi đè dữ liệu đã đổi
+PASS: Anon không bỏ qua Edge để huỷ RPC
+PASS: Anon không bỏ qua Edge để tra cứu RPC
+PASS: Anon không bỏ qua Edge để đặt RPC
+PASS: Anon không chạy maintenance
+PASS: Anon không sửa sức chứa
+PASS: Anon không đọc được đơn
+PASS: Anon đọc được số chỗ
+PASS: Blacklist được kiểm tra ở server
+PASS: Bất biến: reserved bằng tổng người của đơn còn hiệu lực
+PASS: Cho phép huỷ khi còn đúng 4 giờ
+PASS: Chuẩn hoá +84
+PASS: Chuẩn hoá 84
+PASS: Chặn phone null
+PASS: Chặn đuôi 8 chữ số lặp
+PASS: Chặn đầu số sai
+PASS: Chủ nhật không nhận từ 13h
+PASS: Chủ tiệm vẫn huỷ được sát giờ
+PASS: Chủ tiệm xem ngày qua RPC
+PASS: Chủ tiệm đọc được đơn qua RLS
+PASS: Cùng key khác payload bị từ chối
+PASS: Dời cập nhật phiên bản outbox
+PASS: Dời trả chỗ cũ và giữ chỗ mới
+PASS: Ghi outbox cùng đơn
+PASS: Giữ số 0
+PASS: Huỷ lặp an toàn
+PASS: Huỷ lặp chỉ trả chỗ một lần
+PASS: Huỷ vẫn giữ tác vụ xoá event
+PASS: Hết chỗ bị chặn ở server
+PASS: ID event ổn định và mã chỉ lưu dạng băm
+PASS: Khách huỷ trước 4 giờ
+PASS: Khách không huỷ khi còn dưới 4 giờ
+PASS: Không giảm sức chứa dưới số đã đặt
+PASS: Không huỷ bằng mã của người khác
+PASS: Không tự nâng thành chủ tiệm
+PASS: Không vượt 10 ngày
+PASS: Không vượt sức chứa
+PASS: Không xoá cứng đơn làm mất tác vụ xoá Calendar
+PASS: Không âm thầm xoá chữ cái
+PASS: Không đóng ngày có đơn chưa xử lý
+PASS: Không đặt quá khứ
+PASS: Lượt thứ 11 bị giới hạn
+PASS: Mọi đơn luôn có tác vụ đúng phiên bản
+PASS: Payload Realtime không chứa PII
+PASS: RPC chặn số lặp
+PASS: Realtime chỉ publish availability
+PASS: Retry không nhân đôi đơn
+PASS: Retry trả đúng đơn cũ
+PASS: Sinh 10 ngày x 24 giờ
+PASS: Trừ đúng 1 chỗ
+PASS: Tạo lịch trong giới hạn 1
+PASS: Tạo lịch trong giới hạn 2
+PASS: Tạo lịch trong giới hạn 3
+PASS: Tạo đơn sát giờ để kiểm tra
+PASS: Tạo đơn ở mốc đúng 4 giờ
+PASS: User khác không đọc được audit
+PASS: User khác không đọc được outbox
+PASS: User khác không đọc được đơn đã tồn tại
+PASS: User thường không dùng admin RPC
+PASS: User thường không sửa blacklist
+PASS: User thường không thấy đơn qua RLS
+PASS: Đúng mã sai phone không đọc được
+PASS: Đúng phone sai mã không đọc được
+PASS: Đúng phone và mã tra cứu được
+PASS: Đặt chỗ cuối
+PASS: Đặt thành công qua service_role
+PASS: Đổi IP không vượt giới hạn 3 lịch
+PASS: Đổi phone không vượt giới hạn IP
+
+72/72 kiểm tra đạt.
+OK: supabase/tests/01_core.sql
+PostgreSQL 18.3 (PGlite 0.5.8) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit
+Chưa kiểm tra: Supabase HTTP/Auth thật, WebSocket Realtime, nhiều kết nối, Calendar, k6.
