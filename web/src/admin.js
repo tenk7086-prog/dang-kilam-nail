@@ -20,7 +20,7 @@ async function loadBookings(){const from=$('from-date').value,to=$('to-date').va
 async function createManualBooking(){const button=$('manual-booking-button');if(button.disabled)return;const name=$('manual-name').value.trim(),phone=normalizePhone($('manual-phone').value),date=$('manual-date').value,time=$('manual-time').value,people=Number($('manual-people').value);if(!name||!phone||!date||!time||!Number.isInteger(people)||people<1||people>20){show('admin-error',!phone?'Số điện thoại chưa hợp lệ.':'Dữ liệu lịch chưa hợp lệ.');return;}const payload={p_name:name,p_phone:phone,p_local_date:date,p_local_time:`${time.slice(0,5)}:00`,p_people:people};const fingerprint=JSON.stringify(payload);if(state.manualPending?.fingerprint!==fingerprint)state.manualPending={fingerprint,key:crypto.randomUUID()};button.disabled=true;button.textContent='Đang tạo lịch…';show('admin-error','');try{const data=await rpc('admin_create_booking',{...payload,p_idempotency_key:state.manualPending.key});if(!data?.ok)throw Error(data?.error||'server_error');state.manualPending=null;toast(data.replayed?'Lịch đã tồn tại, không tạo trùng.':'Đã tạo lịch và đưa vào hàng đợi đồng bộ Calendar.');$('from-date').value=date;$('to-date').value=date;$('filter-phone').value='';await loadBookings();$('manual-booking-form').reset();$('manual-date').min=vnDate();$('manual-date').value=date;}catch(e){show('admin-error',message(String(e.message||e)));}finally{button.disabled=false;button.textContent='Tạo lịch và đồng bộ Calendar';}}
 async function changeBooking(b,action,newStartsAt=null){if(!confirm(action==='cancel'?'Huỷ lịch này?':'Dời lịch sang giờ đã chọn?'))return;try{const result=await rpc('admin_change_booking',{p_id:b.id,p_action:action,p_expected_version:b.version,p_new_starts_at:newStartsAt});toast(action==='cancel'?'Đã huỷ lịch.':'Đã dời lịch.');await loadBookings();return result;}catch(e){show('admin-error',message(String(e.message||e)));}}
 async function moveBooking(b){state.moveTarget=b;const local=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(b.starts_at)).replace(', ','T');const [date,time]=local.split('T');$('move-date').value=date;$('move-time').value=time;$('move-summary').textContent=`${b.customer_name} · ${b.phone} · ${timeText(b.starts_at)} ${dateText(b.starts_at)}`;$('move-error').hidden=true;$('move-dialog').showModal();}
-async function loadSettings(){state.settings=(await table('shop_settings','select=name,address,contact_phone,announcement&limit=1'))[0];state.hours=await table('weekly_hours','select=weekday,opens,closes,capacity&order=weekday');state.blocked=await rpc('admin_list_blocked_phones',{});$('shop-announcement').value=state.settings?.announcement??'';$('shop-phone').value=state.settings?.contact_phone??'';renderHours();renderBlocked();}
+async function loadSettings(){state.settings=(await table('shop_settings','select=name,address,contact_phone,announcement&limit=1'))[0];state.hours=await table('weekly_hours','select=weekday,opens,closes,capacity&order=weekday');state.blocked=await rpc('admin_list_blocked_phones',{});$('shop-announcement').value=state.settings?.announcement??'';$('shop-phone').value=state.settings?.contact_phone??'';renderHours();renderBlocked();await loadClosedDays();}
 function renderBlocked(){const list=$('blocked-list');if(!state.blocked.length){list.innerHTML='<p class="admin-muted">Chưa có số bị chặn.</p>';return;}list.replaceChildren(...state.blocked.map(b=>{const row=document.createElement('div');row.className='blocked-row';const info=document.createElement('span');info.innerHTML=`<strong>${esc(b.phone)}</strong><small>${esc(b.note||'Không có ghi chú')}</small>`;const button=document.createElement('button');button.className='button danger';button.type='button';button.textContent='Bỏ chặn';button.addEventListener('click',async()=>{try{await rpc('admin_set_blocked_phone',{p_phone:b.phone,p_block:false,p_note:''});toast('Đã bỏ chặn số.');await loadSettings();}catch(e){show('admin-error',message(String(e.message||e)));}});row.append(info,button);return row;}));}
 function toast(text){$('admin-toast').textContent=text;$('admin-toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('admin-toast').hidden=true,3000);}
 function csv(){const head=['id','customer_name','phone','starts_at','people','status','version','calendar_pending','calendar_error'];const lines=[head,...state.bookings.map(b=>head.map(k=>String(b[k]??'').replaceAll('"','""')))].map(row=>row.map(v=>`"${v}"`).join(','));const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`hanhnail-${$('from-date').value}-${$('to-date').value}.csv`;a.click();URL.revokeObjectURL(a.href);}
@@ -34,3 +34,41 @@ $('manual-booking-form').addEventListener('submit',async e=>{e.preventDefault();
 $('move-form').addEventListener('submit',async e=>{e.preventDefault();if(!state.moveTarget)return;const date=$('move-date').value,time=$('move-time').value;if(!date||!time){show('move-error','Vui lòng chọn ngày và giờ mới.');return;}try{const moved=await changeBooking(state.moveTarget,'move',`${date}T${time.slice(0,5)}:00+07:00`);if(!moved)return;$('move-dialog').close();state.moveTarget=null;}catch(e){show('move-error',message(String(e.message||e)));}});
 $('close-move').addEventListener('click',()=>{$('move-dialog').close();state.moveTarget=null;});
 async function init(){setDefaultDates();try{await loadConfig();const token=sessionStorage.getItem('dkn_admin_token');if(token){state.token=token;$('login-view').hidden=true;$('dashboard-view').hidden=false;$('logout').hidden=false;try{await loadSettings();await loadBookings();}catch(e){sessionStorage.removeItem('dkn_admin_token');location.reload();}}}catch{configError();}}void init();
+
+let closedBusy=false;
+async function loadClosedDays(){
+  const days=await table('closed_days',`select=local_date,notice&local_date=gte.${vnDate()}&order=local_date`);
+  const list=$('closed-list');list.replaceChildren();
+  if(!days.length){list.textContent='Chưa có ngày nghỉ sắp tới.';return;}
+  for(const day of days){
+    const row=document.createElement('div');row.className='closed-row';
+    const text=document.createElement('span');text.textContent=`${day.local_date.split('-').reverse().join('/')} · ${day.notice||'Tiệm nghỉ'}`;
+    const button=document.createElement('button');button.type='button';button.className='button secondary';button.textContent='Mở lại ngày này';button.disabled=closedBusy;
+    button.addEventListener('click',()=>{if(confirm(`Mở nhận lịch lại ngày ${day.local_date.split('-').reverse().join('/')}?`))void saveClosedDays(day.local_date,day.local_date,true);});
+    row.append(text,button);list.append(row);
+  }
+}
+async function saveClosedDays(from,to,remove){
+  if(closedBusy)return;
+  closedBusy=true;
+  for(const button of document.querySelectorAll('#closed-form button,#closed-list button'))button.disabled=true;
+  show('closed-feedback','Đang lưu…');
+  try{
+    await rpc('admin_set_closed_days',{p_from:from,p_to:to,p_notice:$('closed-notice').value.trim()||'Tiệm nghỉ',p_remove:remove});
+    show('closed-feedback',remove?'Đã mở lại ngày theo giờ và sức chứa hiện có.':'Đã khóa toàn bộ ngày đã chọn.');
+  }catch(e){
+    const error=String(e.message||e);
+    show('closed-feedback',error==='closed_day_has_bookings'?'Có lịch khách trong khoảng ngày này. Chưa khóa ngày nào. Hãy dời hoặc huỷ lịch khách trước.':error.includes('admin_set_closed_days')?'Chưa cài migration 007 trên Supabase. Vui lòng chạy file SQL đi kèm.':message(error));
+  }finally{
+    closedBusy=false;
+    $('closed-save').disabled=false;
+    try{await loadClosedDays();}catch{show('closed-feedback','Chưa tải được danh sách. Bấm Tải lại trước khi thao tác tiếp.');}
+  }
+}
+$('closed-from').min=vnDate();$('closed-to').min=vnDate();
+$('closed-from').addEventListener('change',()=>{const from=$('closed-from').value;$('closed-to').min=from||vnDate();if(!$('closed-to').value||$('closed-to').value<from)$('closed-to').value=from;});
+$('closed-form').addEventListener('submit',e=>{
+  e.preventDefault();const from=$('closed-from').value,to=$('closed-to').value;
+  if(!from||!to||from<vnDate()||to<from||Date.parse(to)-Date.parse(from)>365*86400000){show('closed-feedback','Chọn khoảng ngày từ hôm nay, tối đa 366 ngày mỗi lần.');return;}
+  void saveClosedDays(from,to,false);
+});

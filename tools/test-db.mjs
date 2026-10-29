@@ -23,6 +23,8 @@ try {
     'supabase/migrations/202610010002_calendar_worker.sql',
     'supabase/migrations/202610090003_phone_lookup.sql',
     'supabase/migrations/202610090005_owner_future_booking.sql',
+    'supabase/migrations/202610290007_admin_closed_days.sql',
+    'supabase/tests/05_closed_days.sql',
     'supabase/tests/01_core.sql',
     'supabase/tests/02_calendar.sql',
     'supabase/tests/03_phone_lookup.sql',
@@ -31,7 +33,7 @@ try {
     const results = await db.exec(await readFile(new URL(file, root), 'utf8'));
     if (file.includes('/tests/')) {
       const assertions = results.flatMap(r => r.rows ?? []).filter(r => r.label);
-      const expected = file.includes('01_core') ? 72 : file.includes('02_calendar') ? 33 : file.includes('03_phone_lookup') ? 18 : 18;
+      const expected = file.includes('05_closed_days') ? 0 : file.includes('01_core') ? 72 : file.includes('02_calendar') ? 33 : file.includes('03_phone_lookup') ? 18 : 18;
       if (assertions.length !== expected) throw new Error(`Thiếu kết quả: ${assertions.length}/${expected}`);
       for (const row of assertions) console.log(`PASS: ${row.label}`);
       console.log(`\n${assertions.length}/${expected} kiểm tra đạt.`);
