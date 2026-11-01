@@ -1,6 +1,6 @@
 import './style.css';
 import {gallery} from './gallery.js';
-import {makeBackend,ApiError,nextDays,vnDate,normalizePhone,newRequestKey} from './backend.js';
+import {makeBackend,ApiError,nextDays,vnDate,normalizePhone,newRequestKey,closedDayNotice} from './backend.js';
 const $=id=>document.getElementById(id);
 const state={backend:null,data:null,day:vnDate(),slot:null,people:1,busy:false,pending:null,uncertain:false,lookup:null,cancelTarget:null,lookupPhone:null,lookupBusy:false,cancelBusy:false,liveSocket:false,loading:false,dirty:false};
 const messages={slot_full:'Khung giờ vừa hết chỗ cho nhóm của bạn. Vui lòng chọn giờ khác.',slot_unavailable:'Khung giờ này không còn nhận lịch.',already_booked:'Số điện thoại này đã có lịch ở khung giờ đã chọn. Hãy tra cứu lịch cũ.',outside_booking_window:'Khung giờ đã qua hoặc ngoài 10 ngày nhận lịch.',invalid_phone:'Số điện thoại chưa hợp lệ. Hãy nhập số di động Việt Nam, ví dụ 0901 234 567.',invalid_name:'Họ tên cần từ 2–80 ký tự và không có ký tự xuống dòng.',invalid_people:'Vui lòng chọn số người hợp lệ.',phone_blocked:'Chưa thể đặt trực tuyến với số này. Vui lòng liên hệ tiệm.',too_many_active_bookings:'Số điện thoại đã có 3 lịch sắp tới. Hãy kiểm tra các lịch đã đặt.',rate_limited:'Bạn thao tác quá nhiều lần. Vui lòng thử lại sau khoảng 15 phút.',not_found:'Không tìm thấy lịch với số điện thoại này.',cancellation_too_late:'Lịch đã bắt đầu hoặc đã quá thời hạn huỷ trực tuyến.',idempotency_conflict:'Thông tin yêu cầu không khớp. Hãy kiểm tra lịch trước khi đặt lại.',preview_only:'Đây là bản xem trước, chưa nhận đặt hoặc tra cứu lịch thật.',configuration_invalid:'Chức năng đặt lịch chưa được cấu hình đúng. Vui lòng liên hệ tiệm.',origin_denied:'Website chưa được phép kết nối hệ thống đặt lịch. Vui lòng liên hệ tiệm.',load_failed:'Chưa tải được lịch. Vui lòng kiểm tra mạng và thử lại.'};
@@ -45,6 +45,11 @@ function paintDays(){const focused=document.activeElement?.dataset?.day;const da
  if(focused)$('days').querySelector(`[data-day="${focused}"]`)?.focus({preventScroll:true});
 }
 function paintSlots(){if(!state.data)return;const active=document.activeElement?.dataset?.slot;
+ const notice=closedDayNotice(state.data.closedDays,state.day);
+ if(notice!==null){
+  const message=el('p','empty closed-day-notice',notice);message.setAttribute('role','status');
+  $('slots').replaceChildren(message);$('slots').setAttribute('aria-busy',String(state.loading));return;
+ }
  const list=state.data.availability.filter(x=>x.local_date===state.day&&(x.capacity>0||x.reserved>0));
  const nodes=list.map(row=>{const passed=Date.parse(row.starts_at)<=Date.now();const full=row.remaining<state.people;
  const button=el('button','slot');button.type='button';button.dataset.slot=row.starts_at;button.disabled=passed||full||state.busy||state.uncertain||state.loading;button.setAttribute('aria-pressed',String(state.slot===row.starts_at));

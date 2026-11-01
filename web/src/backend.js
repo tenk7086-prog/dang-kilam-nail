@@ -14,7 +14,7 @@ export function validConfig(config){
 const sampleSettings={name:'Hanhnail',address:'Số 181 Khương Thượng, Phường Kim Liên, Hà Nội',contact_phone:null,announcement:'',cancel_before_hours:0};
 export function demoData(){
  const availability=nextDays().flatMap(day=>{const sunday=new Date(day+'T12:00:00+07:00').getUTCDay()===0;return Array.from({length:sunday?4:11},(_,i)=>{const h=i+9;return{local_date:day,local_time:String(h).padStart(2,'0')+':00:00',starts_at:`${day}T${String(h).padStart(2,'0')}:00:00+07:00`,capacity:h===12?1:2,reserved:0,remaining:h===12?1:2};});});
- return{settings:sampleSettings,availability,hours:Array.from({length:7},(_,i)=>({weekday:i,opens:'09:00:00',closes:i===0?'13:00:00':'20:00:00',capacity:2})),services:[{name:'Sơn gel',price_vnd:120000,description:'Chọn sắc màu yêu thích cho bộ móng của bạn.',is_sample:true},{name:'Chăm sóc móng',price_vnd:80000,description:'Làm gọn và chăm chút cho đôi bàn tay.',is_sample:true},{name:'Thiết kế móng',price_vnd:200000,description:'Giá thay đổi theo mẫu và phụ kiện.',is_sample:true}]};
+ return{closedDays:[],settings:sampleSettings,availability,hours:Array.from({length:7},(_,i)=>({weekday:i,opens:'09:00:00',closes:i===0?'13:00:00':'20:00:00',capacity:2})),services:[{name:'Sơn gel',price_vnd:120000,description:'Chọn sắc màu yêu thích cho bộ móng của bạn.',is_sample:true},{name:'Chăm sóc móng',price_vnd:80000,description:'Làm gọn và chăm chút cho đôi bàn tay.',is_sample:true},{name:'Thiết kế móng',price_vnd:200000,description:'Giá thay đổi theo mẫu và phụ kiện.',is_sample:true}]};
 }
 export function makeBackend(config){
  const live=validConfig(config);const url=config.supabaseUrl?.replace(/\/$/,'');let socket,channel;
@@ -22,11 +22,12 @@ export function makeBackend(config){
  async function table(name,query){const res=await fetch(`${url}/rest/v1/${name}?${query}`,{headers,signal:AbortSignal.timeout(8000),cache:'no-store'});if(!res.ok)throw new ApiError('load_failed');const data=await res.json();if(!Array.isArray(data))throw new ApiError('load_failed');return data;}
  return{
   live,
-  async snapshot(){if(!live)return demoData();const days=nextDays();const [availability,settings,hours,services]=await Promise.all([
+  async snapshot(){if(!live)return demoData();const days=nextDays();const [availability,settings,hours,services,closedDays]=await Promise.all([
    table('availability',`select=starts_at,local_date,local_time,capacity,reserved,remaining&local_date=gte.${days[0]}&local_date=lte.${days.at(-1)}&order=starts_at.asc`),
    table('shop_settings','select=name,address,contact_phone,announcement,cancel_before_hours&limit=1'),table('weekly_hours','select=weekday,opens,closes,capacity&order=weekday'),
-   table('services','select=name,description,price_vnd,is_sample,sort_order&order=sort_order.asc')]);
-   if(settings.length!==1)throw new ApiError('load_failed');return{availability,settings:settings[0],hours,services};},
+   table('services','select=name,description,price_vnd,is_sample,sort_order&order=sort_order.asc'),
+   table('closed_days',`select=local_date,notice&local_date=gte.${days[0]}&local_date=lte.${days.at(-1)}&order=local_date.asc`)]);
+   if(settings.length!==1)throw new ApiError('load_failed');return{availability,settings:settings[0],hours,services,closedDays};},
   async mutate(body){if(!live)throw new ApiError('preview_only');let res,data;try{res=await fetch(`${url}/functions/v1/customer-api`,{method:'POST',headers:{'Content-Type':'application/json',apikey:config.publishableKey},body:JSON.stringify(body),signal:AbortSignal.timeout(9000),cache:'no-store'});data=await res.json();}catch{throw new ApiError('connection_uncertain',true);}
    if(!res.ok||data.ok!==true){throw new ApiError(data.error??'server_error',res.status>=500);}
    const bookings=body.action==='lookup'?data.bookings:[data.booking];
@@ -40,4 +41,10 @@ export function makeBackend(config){
   }catch{onStatus('CHANNEL_ERROR');}},
   disconnect(){if(channel&&socket)socket.removeChannel(channel);socket?.disconnect();channel=null;socket=null;}
  };
+}
+
+export function closedDayNotice(closedDays,day){
+ const closed=closedDays?.find(item=>item.local_date===day);
+ if(!closed)return null;
+ return closed.notice?.trim()||'Tiệm nghỉ trong ngày này. Vui lòng chọn ngày khác.';
 }

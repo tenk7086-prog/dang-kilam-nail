@@ -52,7 +52,7 @@ async function mockLive(page){
  const data=demoData();const calls=[];const day=nextDays()[1];
  let bookings=[9,10,11].map((hour,i)=>({id:`booking-${i}`,name:'Khách thử',phone:'0901234567',people:1,status:'confirmed',can_cancel:true,starts_at:`${day}T${hour.toString().padStart(2,'0')}:00:00+07:00`}));
  await page.route('**/site-config.json',r=>r.fulfill({json:{supabaseUrl:'https://mock.supabase.co',publishableKey:'sb_publishable_test',siteUrl:''}}));
- await page.route('https://mock.supabase.co/rest/v1/**',r=>{const table=new URL(r.request().url()).pathname.split('/').pop();const values={availability:data.availability,shop_settings:[data.settings],weekly_hours:data.hours,services:data.services};return r.fulfill({headers:cors,json:values[table]});});
+ await page.route('https://mock.supabase.co/rest/v1/**',r=>{const table=new URL(r.request().url()).pathname.split('/').pop();const values={availability:data.availability,shop_settings:[data.settings],weekly_hours:data.hours,services:data.services,closed_days:data.closedDays};return r.fulfill({headers:cors,json:values[table]});});
  await page.routeWebSocket('wss://mock.supabase.co/**',ws=>ws.close());
  await page.route('https://mock.supabase.co/functions/v1/customer-api',async r=>{
   if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:cors});
@@ -78,4 +78,20 @@ test('đặt không có secret, điền phone tra cứu và chống bấm đúp'
  await expect(page.locator('#booking-success')).toBeVisible();expect(calls.filter(c=>c.action==='book')).toHaveLength(1);
  await expect(page.locator('#success-secret,.secret-box,#copy-secret')).toHaveCount(0);await expect(page.locator('#lookup-phone')).toHaveValue('0901234567');
  expect(await page.evaluate(()=>Object.keys(localStorage).sort())).toEqual(['dkn_name','dkn_phone']);
+});
+
+test('Ngày nghỉ hiển thị thông báo đã lưu và không hiện nút giờ',async({page})=>{
+ await mockLive(page);
+ const day=nextDays()[1];
+ const notice='Shop nghỉ từ 09/11 đến 11/11. Mở lại ngày 12/11. <b>Xin cảm ơn!</b>';
+ await page.route('https://mock.supabase.co/rest/v1/closed_days?**',r=>r.fulfill({headers:cors,json:[{local_date:day,notice}]}));
+ await page.goto('/');
+ await page.locator(`#days [data-day="${day}"]`).click();
+ await expect(page.locator('#slots')).toHaveText(notice);
+ await expect(page.locator('#slots button')).toHaveCount(0);
+ await expect(page.locator('#slots b')).toHaveCount(0);
+ await expect(page.locator('#submit-booking')).toBeDisabled();
+ await page.locator('#days button').nth(2).click();
+ await expect(page.locator('#slots .closed-day-notice')).toHaveCount(0);
+ await expect(page.locator('#slots button').first()).toBeVisible();
 });
