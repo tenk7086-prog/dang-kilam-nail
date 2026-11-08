@@ -72,3 +72,39 @@ $('closed-form').addEventListener('submit',e=>{
   if(!from||!to||from<vnDate()||to<from||Date.parse(to)-Date.parse(from)>365*86400000){show('closed-feedback','Chọn khoảng ngày từ hôm nay, tối đa 366 ngày mỗi lần.');return;}
   void saveClosedDays(from,to,false);
 });
+
+// Các thao tác chỗ trống không tạo đơn khách và không gửi Calendar.
+let daySlotsBusy=false, daySlotsLoaded=null;
+const daySlotsDate=$('day-slots-date');daySlotsDate.min=vnDate();daySlotsDate.value=vnDate();
+function renderDaySlots(data){
+ $('day-slots-grid').replaceChildren(...data.slots.map(slot=>{
+  const card=document.createElement('article');card.className='day-slot-card';
+  const title=document.createElement('h3');title.textContent=slot.time.slice(0,5)+(slot.extra?' · Ca thêm':'');
+  const detail=document.createElement('p');detail.textContent=`Đã đặt: ${slot.reserved} · Đã khóa: ${slot.blocked} · Còn: ${data.closed?0:slot.remaining}`;
+  card.append(title,detail);
+  for(const [action,label,disabled] of [['block','Khóa 1 chỗ',slot.remaining<1],['unblock','Mở lại 1 chỗ',slot.blocked<1]]){
+   const button=document.createElement('button');button.type='button';button.className='button secondary';button.textContent=label;
+   button.disabled=disabled||data.closed||Date.parse(slot.starts_at)<=Date.now();
+   button.addEventListener('click',()=>editDaySlot(slot.time,action,null,slot.blocked));card.append(button);
+  }return card;
+ }));
+ show('day-slots-feedback',data.closed?'Ngày này đang khóa cả ngày. Hãy mở lại trong mục Ngày nghỉ trước khi chỉnh khung giờ.':data.slots.length?'Mỗi lần bấm khóa một chỗ còn trống.':'Chưa có khung giờ. Bạn có thể mở thêm ca cho ngày này.');
+}
+async function loadDaySlots(){
+ if(daySlotsBusy)return;daySlotsBusy=true;daySlotsLoaded=null;$('day-slots-grid').replaceChildren();show('day-slots-feedback','Đang tải…');
+ try{const date=daySlotsDate.value;const data=await rpc('admin_day_slots',{p_date:date});if(date===daySlotsDate.value){daySlotsLoaded=date;renderDaySlots(data);}}
+ catch(e){show('day-slots-feedback',slotError(e));}finally{daySlotsBusy=false;}
+}
+function slotError(e){const error=String(e.message||e);return error==='slot_exists'?'Khung giờ đã tồn tại. Hãy dùng nút mở lại chỗ nếu đã khóa.':error.includes('admin_day_slots')||error.includes('admin_edit_day_slot')?'Chưa cài bản cập nhật SQL 008 hoặc phiên đăng nhập không còn hợp lệ.':message(error);}
+async function editDaySlot(time,action,value,expected){
+ if(daySlotsBusy)return;
+ if(daySlotsLoaded!==daySlotsDate.value){show('day-slots-feedback','Hãy tải khung giờ của ngày đã chọn trước.');return;}
+ const date=daySlotsDate.value;daySlotsBusy=true;daySlotsDate.disabled=true;
+ $('day-slots-grid').querySelectorAll('button').forEach(b=>b.disabled=true);show('day-slots-feedback','Đang lưu…');
+ try{const data=await rpc('admin_edit_day_slot',{p_date:date,p_time:time,p_action:action,p_value:value,p_expected_blocked:expected});renderDaySlots(data);show('day-slots-feedback','Đã lưu thay đổi cho ngày '+date.split('-').reverse().join('/')+'.');}
+ catch(e){daySlotsLoaded=null;$('day-slots-grid').replaceChildren();show('day-slots-feedback',slotError(e)+' Bấm Tải khung giờ để kiểm tra trước khi thử lại.');}
+ finally{daySlotsBusy=false;daySlotsDate.disabled=false;}
+}
+$('day-slots-form').addEventListener('submit',e=>{e.preventDefault();void loadDaySlots();});
+daySlotsDate.addEventListener('change',()=>{daySlotsLoaded=null;$('day-slots-grid').replaceChildren();void loadDaySlots();});
+$('day-slots-add').addEventListener('submit',e=>{e.preventDefault();void editDaySlot($('day-slots-time').value,'add',Number($('day-slots-capacity').value),null);});
