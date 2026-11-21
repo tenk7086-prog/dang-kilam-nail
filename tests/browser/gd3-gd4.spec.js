@@ -33,6 +33,32 @@ test('gallery bốn ảnh có vòng trước/sau và Escape',async({page})=>{
  await page.keyboard.press('ArrowRight');await expect(page.locator('#lightbox-caption')).toContainText('Pearl shell');
  await page.keyboard.press('Escape');await expect(page.locator('#lightbox')).not.toBeVisible();
 });
+test('Cảm hứng cuộn ngang trên điện thoại và giữ lưới trên desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto('/');
+  const gallery = page.locator('#gallery');
+  const cards = gallery.locator('.gallery-card');
+  await expect(cards).toHaveCount(4);
+  await expect(gallery).toHaveCSS('scroll-snap-type', 'x mandatory');
+  await expect(cards.first().locator('img')).toHaveCSS('object-fit', 'contain');
+  const frame = await gallery.boundingBox();
+  const secondCard = await cards.nth(1).boundingBox();
+  expect(secondCard.x).toBeLessThan(frame.x + frame.width);
+  expect(secondCard.x + secondCard.width).toBeGreaterThan(frame.x + frame.width);
+
+  await cards.last().evaluate(card => card.scrollIntoView({ inline: 'start', block: 'nearest' }));
+  await expect.poll(async () => Math.abs((await cards.last().boundingBox()).x - frame.x)).toBeLessThan(8);
+  await cards.last().click();
+  await expect(page.locator('#lightbox-caption')).toContainText('Ocean shell');
+  await page.keyboard.press('Escape');
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(gallery).toHaveCSS('display', 'grid');
+  await expect(gallery).toHaveCSS('scroll-snap-type', 'none');
+  const firstDesktopCard = await cards.first().boundingBox();
+  const lastDesktopCard = await cards.last().boundingBox();
+  expect(lastDesktopCard.y).toBe(firstDesktopCard.y);
+});
 test('nhóm số người hỗ trợ phím mũi tên và không che xác nhận',async({page})=>{
  await page.goto('/');const one=page.locator('#people input[value="1"]'),two=page.locator('#people input[value="2"]');
  await one.focus();await page.keyboard.press('ArrowRight');await expect(two).toBeChecked();
