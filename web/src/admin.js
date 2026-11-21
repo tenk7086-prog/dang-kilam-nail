@@ -15,7 +15,64 @@ async function rpc(name,body){const res=await fetch(`${state.config.supabaseUrl.
 async function table(name,query){const res=await fetch(`${state.config.supabaseUrl.replace(/\/$/,'')}/rest/v1/${name}?${query}`,{headers:headers()});const data=await res.json().catch(()=>[]);if(!res.ok)throw Error(data.message||'server_error');return data;}
 function setDefaultDates(){const days=nextDays();$('from-date').value=days[0];$('to-date').value=days[6]??days.at(-1);$('manual-date').min=days[0];const max=new Date(`${days[0]}T12:00:00+07:00`);max.setUTCDate(max.getUTCDate()+730);$('manual-date').max=vnDate(max);$('manual-date').value=days[0];}
 function renderHours(){const values=state.hours.length?state.hours:Array.from({length:7},(_,weekday)=>({weekday,opens:'09:00:00',closes:weekday===0?'13:00:00':'20:00:00',capacity:2}));$('hours-fields').replaceChildren(...values.sort((a,b)=>a.weekday-b.weekday).map(h=>{const row=document.createElement('div');row.className='hours-row';row.dataset.weekday=h.weekday;const title=document.createElement('span');title.textContent=weekdays[h.weekday];const open=document.createElement('input');open.type='time';open.value=h.opens.slice(0,5);open.setAttribute('aria-label',`${weekdays[h.weekday]} mở cửa`);const close=document.createElement('input');close.type='time';close.value=h.closes.slice(0,5);close.setAttribute('aria-label',`${weekdays[h.weekday]} đóng cửa`);row.append(title,open,close);return row;}));}
-function renderBookings(){const list=$('bookings-list');$('booking-count').textContent=`${state.bookings.length} lịch`;if(!state.bookings.length){list.innerHTML='<p class="admin-muted">Không có lịch trong khoảng đã chọn.</p>';return;}list.replaceChildren(...state.bookings.map(b=>{const row=document.createElement('article');row.className='booking-row';const start=document.createElement('div');start.innerHTML=`<div class="booking-primary">${esc(timeText(b.starts_at))} · ${esc(dateText(b.starts_at))}</div><div class="booking-meta">${esc(b.customer_name)} · ${esc(b.phone)} · ${b.people} người</div>`;const status=document.createElement('div');status.className=`booking-meta ${b.status==='cancelled'?'status-cancelled':'status-confirmed'}`;status.textContent=b.status==='cancelled'?'Đã huỷ':'Đã xác nhận';if(b.calendar_pending)status.textContent+=' · Đang đồng bộ lịch';if(b.calendar_error)status.textContent+=' · Lỗi Calendar';const actions=document.createElement('div');actions.className='booking-actions';if(b.status==='confirmed'){const cancel=document.createElement('button');cancel.className='button danger';cancel.type='button';cancel.textContent='Huỷ';cancel.addEventListener('click',()=>changeBooking(b,'cancel'));const move=document.createElement('button');move.className='button secondary';move.type='button';move.textContent='Dời giờ';move.addEventListener('click',()=>moveBooking(b));actions.append(move,cancel);}row.append(start,status,actions);return row;}));}
+function renderBookings() {
+  const list = $('bookings-list');
+  $('booking-count').textContent = `${state.bookings.length} lịch`;
+  if (!state.bookings.length) {
+    list.innerHTML = '<p class="admin-muted">Không có lịch trong khoảng đã chọn.</p>';
+    return;
+  }
+
+  list.replaceChildren(...state.bookings.map(booking => {
+    const row = document.createElement('article');
+    row.className = 'booking-row';
+
+    const start = document.createElement('div');
+    start.innerHTML = `<div class="booking-primary">${esc(timeText(booking.starts_at))} · ${esc(dateText(booking.starts_at))}</div>
+      <div class="booking-meta">${esc(booking.customer_name)} · ${esc(booking.phone)} · ${booking.people} người</div>`;
+
+    const status = document.createElement('div');
+    status.className = 'booking-meta booking-status';
+    const cancelled = booking.status === 'cancelled';
+    const bookingStatus = document.createElement('span');
+    bookingStatus.className = cancelled ? 'status-cancelled' : 'status-confirmed';
+    bookingStatus.textContent = cancelled ? 'Đã huỷ' : 'Đã xác nhận';
+    status.append(bookingStatus);
+
+    if (booking.calendar_pending) {
+      const pending = document.createElement('span');
+      pending.className = 'status-pending';
+      pending.textContent = 'Đang đồng bộ lịch';
+      status.append(pending);
+    }
+    if (booking.calendar_error) {
+      const error = document.createElement('span');
+      error.className = 'status-error';
+      error.textContent = 'Lỗi Calendar';
+      status.append(error);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'booking-actions';
+    if (booking.status === 'confirmed') {
+      const move = document.createElement('button');
+      move.className = 'button secondary';
+      move.type = 'button';
+      move.textContent = 'Dời giờ';
+      move.addEventListener('click', () => moveBooking(booking));
+
+      const cancel = document.createElement('button');
+      cancel.className = 'button danger';
+      cancel.type = 'button';
+      cancel.textContent = 'Huỷ';
+      cancel.addEventListener('click', () => changeBooking(booking, 'cancel'));
+      actions.append(move, cancel);
+    }
+
+    row.append(start, status, actions);
+    return row;
+  }));
+}
 async function loadBookings(){const from=$('from-date').value,to=$('to-date').value;if(!from||!to||to<from||new Date(`${to}T00:00:00`)-new Date(`${from}T00:00:00`)>31*86400000)throw Error('invalid_request');const phone=$('filter-phone').value.trim();if(phone&&!normalizePhone(phone))throw Error('invalid_phone');state.bookings=await rpc('admin_list_bookings',{p_from:from,p_to:to,p_phone:phone?normalizePhone(phone):null});renderBookings();show('admin-error','');show('admin-status',`Đã tải ${state.bookings.length} lịch · ${from} đến ${to}`);}
 async function createManualBooking(){const button=$('manual-booking-button');if(button.disabled)return;const name=$('manual-name').value.trim(),phone=normalizePhone($('manual-phone').value),date=$('manual-date').value,time=$('manual-time').value,people=Number($('manual-people').value);if(!name||!phone||!date||!time||!Number.isInteger(people)||people<1||people>20){show('admin-error',!phone?'Số điện thoại chưa hợp lệ.':'Dữ liệu lịch chưa hợp lệ.');return;}const payload={p_name:name,p_phone:phone,p_local_date:date,p_local_time:`${time.slice(0,5)}:00`,p_people:people};const fingerprint=JSON.stringify(payload);if(state.manualPending?.fingerprint!==fingerprint)state.manualPending={fingerprint,key:crypto.randomUUID()};button.disabled=true;button.textContent='Đang tạo lịch…';show('admin-error','');try{const data=await rpc('admin_create_booking',{...payload,p_idempotency_key:state.manualPending.key});if(!data?.ok)throw Error(data?.error||'server_error');state.manualPending=null;toast(data.replayed?'Lịch đã tồn tại, không tạo trùng.':'Đã tạo lịch và đưa vào hàng đợi đồng bộ Calendar.');$('from-date').value=date;$('to-date').value=date;$('filter-phone').value='';await loadBookings();$('manual-booking-form').reset();$('manual-date').min=vnDate();$('manual-date').value=date;}catch(e){show('admin-error',message(String(e.message||e)));}finally{button.disabled=false;button.textContent='Tạo lịch và đồng bộ Calendar';}}
 async function changeBooking(b,action,newStartsAt=null){if(!confirm(action==='cancel'?'Huỷ lịch này?':'Dời lịch sang giờ đã chọn?'))return;try{const result=await rpc('admin_change_booking',{p_id:b.id,p_action:action,p_expected_version:b.version,p_new_starts_at:newStartsAt});toast(action==='cancel'?'Đã huỷ lịch.':'Đã dời lịch.');await loadBookings();return result;}catch(e){show('admin-error',message(String(e.message||e)));}}
