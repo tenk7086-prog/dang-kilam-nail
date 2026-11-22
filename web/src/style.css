@@ -870,3 +870,51 @@ h1 em,h2 em{
     top: .45rem;
   }
 }
+
+/* Give customer-facing text a comfortable reading size on wide and small screens. */
+.studio-page #navigation a,
+.studio-page .button,
+.studio-page .menu-row dt,
+.studio-page .menu-row dd,
+.studio-page .booking-heading-side > p,
+.studio-page .lookup-section > div > p,
+.studio-page .contact-details address,
+.studio-page .contact-details .hours-block p {
+  font-size: 1rem;
+}
+
+.studio-page .menu-row {
+  padding-block: .45rem;
+}
+
+.studio-page .menu-row dt small,
+.studio-page .menu-note,
+.studio-page .slot small,
+.studio-page .slot-legend,
+.studio-page #sync-status,
+.studio-page .month-label,
+.studio-page .hours-block small,
+.studio-page #contact-note {
+  font-size: .875rem;
+}
+
+.studio-page .step-title h3,
+.studio-page .slot strong,
+.studio-page .selected-summary strong {
+  font-size: 1.125rem;
+}
+
+.studio-page .booking-card label,
+.studio-page .lookup-panel label,
+.studio-page .people-control legend {
+  font-size: .9375rem;
+}
+
+.studio-page .menu-row dd span {
+  font-size: inherit;
+}
+
+.studio-page .map-wrap > a,
+.studio-page .booking-heading-side .text-link {
+  font-size: .9375rem;
+}
