@@ -621,12 +621,6 @@ h1 em,h2 em{
   background: #f3e9df;
 }
 
-.studio-page > main,
-.studio-page > header,
-.studio-page > footer {
-  max-width: 74rem;
-  margin-inline: auto;
-}
 
 .studio-page > main {
   background: var(--paper);
@@ -634,7 +628,7 @@ h1 em,h2 em{
 
 .studio-page > header {
   border-bottom: 1px solid var(--line);
-  border-radius: .9rem .9rem 0 0;
+
   box-shadow: none;
 }
 
@@ -796,11 +790,13 @@ h1 em,h2 em{
 }
 
 @media (min-width: 768px) {
-  .studio-page {
-    padding-top: .4rem;
+  .studio-page .container {
+    width: calc(100% - clamp(3.75rem, 5vw, 7rem));
   }
 
   .studio-page .hero-grid {
+    width: 100%;
+    min-height: clamp(19rem, 23vw, 33rem);
     grid-template-columns: 56% 44%;
   }
 
