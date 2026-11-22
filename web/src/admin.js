@@ -27,10 +27,24 @@ function renderBookings() {
     const row = document.createElement('article');
     row.className = 'booking-row';
 
-    const start = document.createElement('div');
-    start.innerHTML = `<div class="booking-primary">${esc(timeText(booking.starts_at))} · ${esc(dateText(booking.starts_at))}</div>
-      <div class="booking-meta">${esc(booking.customer_name)} · ${esc(booking.phone)} · ${booking.people} người</div>`;
+    const date = document.createElement('div');
+    date.className = 'booking-primary';
+    date.textContent = dateText(booking.starts_at);
 
+    const time = document.createElement('div');
+    time.className = 'booking-primary';
+    time.textContent = timeText(booking.starts_at);
+
+    const guest = document.createElement('div');
+    guest.className = 'booking-guest booking-meta';
+    guest.textContent = booking.customer_name;
+    const people = document.createElement('small');
+    people.textContent = `${booking.people} người`;
+    guest.append(people);
+
+    const phone = document.createElement('div');
+    phone.className = 'booking-phone booking-meta';
+    phone.textContent = booking.phone;
     const status = document.createElement('div');
     status.className = 'booking-meta booking-status';
     const cancelled = booking.status === 'cancelled';
@@ -69,7 +83,7 @@ function renderBookings() {
       actions.append(move, cancel);
     }
 
-    row.append(start, status, actions);
+    row.append(date, time, guest, phone, status, actions);
     return row;
   }));
 }

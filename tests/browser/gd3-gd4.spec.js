@@ -27,10 +27,10 @@ test('menu mobile đóng bằng Escape',async({page})=>{
 test('gallery bốn ảnh có vòng trước/sau và Escape',async({page})=>{
  test.skip(Object.keys(photos).length!==4,'Chờ chủ tiệm cung cấp bốn ảnh thật.');
  await page.goto('/');await page.locator('[data-gallery="0"]').click();await expect(page.locator('#lightbox')).toBeVisible();
- await page.keyboard.press('ArrowLeft');await expect(page.locator('#lightbox-caption')).toContainText('Ocean shell');
+ await page.keyboard.press('ArrowLeft');await expect(page.locator('#lightbox-caption')).toContainText('Hồng hoa nổi');
  await page.keyboard.press('ArrowRight');await expect(page.locator('#lightbox-caption')).toContainText('Cat-eye xanh đêm');
  await page.keyboard.press('ArrowRight');await expect(page.locator('#lightbox-caption')).toContainText('Jelly trong');
- await page.keyboard.press('ArrowRight');await expect(page.locator('#lightbox-caption')).toContainText('Pearl shell');
+ await page.keyboard.press('ArrowRight');await expect(page.locator('#lightbox-caption')).toContainText('Đỏ rượu');
  await page.keyboard.press('Escape');await expect(page.locator('#lightbox')).not.toBeVisible();
 });
 test('Cảm hứng cuộn ngang trên điện thoại và giữ lưới trên desktop', async ({ page }) => {
@@ -49,7 +49,7 @@ test('Cảm hứng cuộn ngang trên điện thoại và giữ lưới trên de
   await cards.last().evaluate(card => card.scrollIntoView({ inline: 'start', block: 'nearest' }));
   await expect.poll(async () => Math.abs((await cards.last().boundingBox()).x - frame.x)).toBeLessThan(8);
   await cards.last().click();
-  await expect(page.locator('#lightbox-caption')).toContainText('Ocean shell');
+  await expect(page.locator('#lightbox-caption')).toContainText('Hồng hoa nổi');
   await page.keyboard.press('Escape');
 
   await page.setViewportSize({ width: 1440, height: 900 });

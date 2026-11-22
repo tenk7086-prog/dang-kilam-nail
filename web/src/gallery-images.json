@@ -1,18 +1,18 @@
 {
-  "mau-2": {
-    "width": 1152,
-    "height": 1214
-  },
-  "mau-4": {
-    "width": 1080,
-    "height": 998
-  },
   "mau-1": {
-    "width": 819,
-    "height": 878
+    "width": 768,
+    "height": 512
+  },
+  "mau-2": {
+    "width": 768,
+    "height": 512
   },
   "mau-3": {
-    "width": 819,
-    "height": 791
+    "width": 768,
+    "height": 512
+  },
+  "mau-4": {
+    "width": 768,
+    "height": 512
   }
 }
